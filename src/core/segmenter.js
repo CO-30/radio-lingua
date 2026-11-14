@@ -6,7 +6,7 @@ export const DEFAULTS = Object.freeze({
   sampleRate: 16000,
   frameMs: 30,
   minSpeechMs: 300, // これより短い音は雑音として捨てる
-  hangoverMs: 650, // この長さの無音で1交信の終わりとみなす
+  hangoverMs: 900, // この長さの無音で1交信の終わりとみなす（文の間の息継ぎ≒0.5秒より長く、交信の切れ目≒1秒以上より短く）
   maxSegmentMs: 20000, // 長すぎる交信は強制的に区切る（Whisperは30秒まで）
   preRollMs: 180, // 話し始めの取りこぼし防止
   minRms: 0.012, // 絶対的な最小音量
