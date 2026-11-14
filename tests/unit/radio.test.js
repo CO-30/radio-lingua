@@ -106,6 +106,9 @@ describe('buildCaption', () => {
     expect(polishJapanese('"了解 。"')).toBe('了解。');
     expect(polishJapanese('- 了解')).toBe('了解');
     expect(polishJapanese('南行き、40マイル標識付近の40マイル標識付近で停止')).toBe('南行き、40マイル標識付近で停止');
+    expect(polishJapanese('南行き、40マイル地点付近の40マイル地点近くの交通停止だ。')).toBe('南行き、40マイル地点近くの交通停止だ。');
+    expect(polishJapanese('救急車7、救急車8が出動')).toBe('救急車7、救急車8が出動');
+    expect(polishJapanese('メープルアベニュー421番地で発生した建物火災に対応してください。')).toBe('メープルアベニュー421番地で発生した建物火災に対応してください。');
   });
   it('定型句は機械翻訳を使わずに訳す', async () => {
     const mt = async (en) => {

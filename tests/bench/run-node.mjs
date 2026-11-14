@@ -6,7 +6,7 @@ import { segmentAll } from '../../src/core/segmenter.js';
 import { resample } from '../../src/core/resample.js';
 import { buildCaption } from '../../src/core/radio.js';
 import { wer, words } from '../../src/core/bench.js';
-import { ASR_MODELS, MT_MODELS } from '../../src/core/models.js';
+import { ASR_MODELS, MT_MODELS, revisionOf } from '../../src/core/models.js';
 import { readWav } from '../helpers/wav.js';
 
 const root = new URL('../../', import.meta.url);
@@ -18,7 +18,7 @@ async function load(task, ids, dtypes) {
   for (const id of ids)
     for (const dtype of dtypes) {
       try {
-        return { p: await pipeline(task, id, { dtype }), id, dtype };
+        return { p: await pipeline(task, id, { dtype, revision: revisionOf(id) }), id, dtype };
       } catch (e) {
         console.warn(`load failed ${id} ${dtype}: ${e.message}`);
       }

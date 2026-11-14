@@ -2,7 +2,7 @@
 // 音声認識: Whisper / 翻訳: LFM2-ENJP-MT または FuguMT（transformers.js + ONNX Runtime Web）
 
 import { pipeline, env } from '@huggingface/transformers';
-import { ASR_MODELS, MT_MODELS } from '../core/models.js';
+import { ASR_MODELS, MT_MODELS, revisionOf } from '../core/models.js';
 import { buildCaption } from '../core/radio.js';
 
 env.allowLocalModels = false;
@@ -16,11 +16,15 @@ let queue = Promise.resolve();
 
 const post = (msg) => self.postMessage(msg);
 
+let hasF16 = false;
 async function detectDevice() {
   try {
     if (self.navigator?.gpu) {
       const adapter = await self.navigator.gpu.requestAdapter();
-      if (adapter) return 'webgpu';
+      if (adapter) {
+        hasF16 = adapter.features.has('shader-f16');
+        return 'webgpu';
+      }
     }
   } catch {}
   return 'wasm';
@@ -39,7 +43,7 @@ async function loadWithFallback(task, ids, optsList, stage) {
   for (const id of ids) {
     for (const opts of optsList) {
       try {
-        const p = await pipeline(task, id, { ...opts, progress_callback: progressFor(stage) });
+        const p = await pipeline(task, id, { ...opts, revision: revisionOf(id), progress_callback: progressFor(stage) });
         return { p, id, opts };
       } catch (e) {
         lastErr = e;
@@ -61,7 +65,12 @@ async function load({ asrKey, mtKey, baseUrl, forceWasm }) {
   const a = ASR_MODELS[asrKey];
   const asrOpts =
     device === 'webgpu'
-      ? [{ device: 'webgpu', dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' } }, { device: 'wasm', dtype: 'q8' }]
+      ? [
+          // fp16 が使えるGPUでは容量が半分で精度は同等（実測で同一の認識結果）
+          ...(hasF16 && asrKey === 'accurate' ? [{ device: 'webgpu', dtype: { encoder_model: 'fp16', decoder_model_merged: 'q4' } }] : []),
+          { device: 'webgpu', dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' } },
+          { device: 'wasm', dtype: 'q8' },
+        ]
       : [{ device: 'wasm', dtype: 'q8' }, { device: 'wasm', dtype: 'fp32' }];
   const r1 = await loadWithFallback('automatic-speech-recognition', [a.id, ...a.fallbacks], asrOpts, 'asr');
   asr = r1.p;

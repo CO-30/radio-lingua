@@ -27,6 +27,7 @@ const history = new History();
 const speaker = new Speaker();
 const capture = new Capture();
 let engine = null;
+const liveIds = new Set(); // 画面の取り込みから送った交信だけを字幕・履歴に出す（精度測定の結果を混ぜない）
 
 /* ---------- 設定 ---------- */
 function loadSettings() {
@@ -96,7 +97,7 @@ function createEngine() {
   e.addEventListener('error', (ev) => {
     const d = ev.detail;
     if (d.stage === 'process') {
-      markPendingFailed(d.id, d.message);
+      if (liveIds.delete(d.id)) markPendingFailed(d.id, d.message);
       return;
     }
     setEngineStatus('error', 'AIの読み込みに失敗');
@@ -117,7 +118,7 @@ function ensureEngine() {
     state.pendingStart = true;
     return false;
   }
-  const mb = estimateDownloadMB(state.settings);
+  const mb = estimateDownloadMB(state.settings, navigator.gpu && !state.settings.forceWasm ? 'gpu' : 'cpu');
   if (!useMock && !localStorage.getItem('radiolingua.downloaded.' + modelKey())) {
     $('consentBody').textContent = `音声認識「${ASR_MODELS[state.settings.asr].label}」と翻訳「${MT_MODELS[state.settings.mt].label}」で、合計 約${mb}MB です。モバイル回線ではWi-Fiへの切り替えをおすすめします。`;
     $('consent').showModal();
@@ -178,6 +179,7 @@ async function start() {
   if (!ensureEngine()) return;
   try {
     state.running = true;
+    state.warnedBacklog = false;
     sessionStart = performance.now();
     updateStartButton();
     if (state.source === 'sample') await capture.startMedia(`${import.meta.env.BASE_URL}samples/demo-dispatch.mp3`, { label: 'デモ交信' });
@@ -223,7 +225,12 @@ capture.addEventListener('segment', (ev) => {
   if (state.engineStatus !== 'ready') return;
   const seg = ev.detail;
   const id = engine.process(seg.audio, { start: seg.start });
+  liveIds.add(id);
   addPendingRow(id);
+  if (liveIds.size >= 3 && !state.warnedBacklog) {
+    state.warnedBacklog = true;
+    $('hint').textContent = 'AIの処理が音声に追いついていません。字幕が遅れる場合は、設定で音声認識を「標準」または「軽量」にしてください。';
+  }
 });
 
 /* ---------- 字幕と履歴 ---------- */
@@ -256,6 +263,7 @@ function markPendingFailed(id, message) {
 }
 
 function onResult({ id, caption, ms }) {
+  if (!liveIds.delete(id)) return;
   const row = document.querySelector(`[data-pending="${id}"]`);
   if (!caption) {
     row?.remove();
