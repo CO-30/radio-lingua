@@ -1,0 +1,8 @@
+[
+ {"text":"Dispatch to Engine twelve. Respond to a reported structure fire at four two one Maple Avenue. Cross street is Oak Drive.","variant":"m3"},
+ {"text":"Engine twelve copies. En route.","variant":"m1","pitch":35},
+ {"text":"Medic seven, priority one call. Sixty five year old male with chest pain at the Riverside shopping center.","variant":"f2","pitch":60},
+ {"text":"Medic seven responding. E T A six minutes.","variant":"m2"},
+ {"text":"Unit twenty three, traffic stop on Highway nine southbound near mile marker forty. Silver sedan, two occupants.","variant":"m4"},
+ {"text":"Ten four. Twenty three is on scene. Code four, no further assistance needed.","variant":"m1","pitch":30}
+]

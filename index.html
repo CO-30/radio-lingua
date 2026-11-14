@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="海外の警察・消防・救急無線を、端末の中のAIで日本語字幕にするWebアプリ" />
+    <meta name="theme-color" content="#1b2630" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231b2630'/%3E%3Cpath d='M7 20h3l2-8 3 12 3-16 3 12 2-4h2' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <title>RADIO LINGUA — 海外の緊急無線を日本語字幕で</title>
+  </head>
+  <body>
+    <div class="app">
+      <header class="bar">
+        <a class="mark" href="./" aria-label="RADIO LINGUA ホーム">
+          <svg class="mark-glyph" viewBox="0 0 32 32" aria-hidden="true"><path d="M3 20h4l2.5-9 3.5 14 3.5-18 3.5 14 2.5-5H29" /></svg>
+          <span class="mark-word">Radio Lingua</span>
+        </a>
+        <div class="engine-state" id="engineState" role="status" aria-live="polite">
+          <span class="dot" aria-hidden="true"></span><span id="engineStateText">AIモデル未準備</span>
+        </div>
+        <button class="icon-btn" id="openSettings" aria-label="設定" title="設定">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg>
+        </button>
+      </header>
+
+      <main class="main">
+        <section class="stage" aria-label="字幕">
+          <div class="stage-top">
+            <span class="onair" id="onair" hidden><span class="onair-dot"></span>受信中</span>
+            <span class="source-now" id="sourceNow"></span>
+            <span class="clock" id="clock"></span>
+          </div>
+          <div class="caption" id="caption" aria-live="polite">
+            <p class="caption-empty" id="captionEmpty">音声を選んで「翻訳を開始」を押すと、交信がここに日本語字幕で表示されます。</p>
+          </div>
+          <div class="meter" aria-hidden="true"><div class="meter-fill" id="meterFill"></div></div>
+        </section>
+
+        <section class="console" aria-label="操作">
+          <div class="sources" role="radiogroup" aria-label="音声の取り込み元" id="sources">
+            <button role="radio" aria-checked="true" data-source="sample"><b>デモ交信</b><small>合成音声・44秒</small></button>
+            <button role="radio" aria-checked="false" data-source="file"><b>音声ファイル</b><small>録音を翻訳</small></button>
+            <button role="radio" aria-checked="false" data-source="mic"><b>マイク・受信機</b><small>受信機の音を拾う</small></button>
+            <button role="radio" aria-checked="false" data-source="tab"><b>タブ音声</b><small>PCのChrome・Edge</small></button>
+          </div>
+          <input type="file" id="fileInput" accept="audio/*,video/*" hidden />
+          <div class="actions">
+            <button class="primary" id="startBtn"><span id="startLabel">翻訳を開始</span></button>
+            <label class="toggle"><input type="checkbox" id="ttsToggle" /><span>日本語で読み上げ</span></label>
+          </div>
+          <p class="hint" id="hint"></p>
+
+          <div class="prep" id="prep" hidden>
+            <p class="prep-text" id="prepText"></p>
+            <div class="progress" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+            <p class="prep-detail" id="prepDetail"></p>
+          </div>
+        </section>
+
+        <section class="log" aria-labelledby="logTitle">
+          <div class="log-head">
+            <h2 id="logTitle">交信ログ</h2>
+            <div class="log-tools">
+              <button class="text-btn" id="exportTxt">テキストで保存</button>
+              <button class="text-btn" id="exportJson">JSONで保存</button>
+              <button class="text-btn danger" id="clearLog">履歴を消去</button>
+            </div>
+          </div>
+          <ol class="log-list" id="logList"></ol>
+          <p class="log-empty" id="logEmpty">まだ交信はありません。過去の翻訳はこの端末にだけ保存されます。</p>
+        </section>
+
+        <section class="live" aria-labelledby="liveTitle">
+          <h2 id="liveTitle">ライブ無線の提供元</h2>
+          <p class="live-lead">利用許諾が確認できた提供元から順に、直接受信できるようにします。現在は「タブ音声」で、ご自身が開いた公式サイトの音声を端末内で翻訳できます。</p>
+          <ul class="providers" id="providers"></ul>
+        </section>
+      </main>
+
+      <footer class="foot">
+        <p>音声認識・翻訳はすべてこの端末の中で行われ、音声や字幕が外部に送られることはありません。AI翻訳には誤りが含まれることがあります。緊急時の判断には使わないでください。</p>
+        <p><a href="https://github.com/CO-30/radio-lingua/blob/main/docs/CREDITS.md" target="_blank" rel="noopener">使用しているAIモデルとライセンス</a></p>
+      </footer>
+    </div>
+
+    <dialog class="sheet" id="settings" aria-labelledby="settingsTitle">
+      <form method="dialog">
+        <h2 id="settingsTitle">設定</h2>
+        <fieldset>
+          <legend>音声認識</legend>
+          <label><input type="radio" name="asr" value="standard" /> 標準 <small>精度重視・約80MB</small></label>
+          <label><input type="radio" name="asr" value="light" /> 軽量 <small>スマホ向け・約40MB</small></label>
+        </fieldset>
+        <fieldset>
+          <legend>翻訳</legend>
+          <label><input type="radio" name="mt" value="lfm2" /> 高品質 <small>LFM2・約300MB</small></label>
+          <label><input type="radio" name="mt" value="fugu" /> 省メモリ <small>FuguMT・約110MB</small></label>
+        </fieldset>
+        <fieldset>
+          <legend>表示と読み上げ</legend>
+          <label><input type="checkbox" name="showEn" /> 英語の原文も表示</label>
+          <label class="range">読み上げの速さ <input type="range" name="rate" min="0.8" max="1.6" step="0.05" /></label>
+          <label class="range">字幕の大きさ <input type="range" name="size" min="0.85" max="1.4" step="0.05" /></label>
+          <label><input type="checkbox" name="forceWasm" /> GPUを使わない（動作が不安定なとき）</label>
+        </fieldset>
+        <p class="sheet-note">モデルを変えた場合は、次に「翻訳を開始」を押したときに読み込み直します。</p>
+        <div class="sheet-actions">
+          <button value="cancel" class="text-btn">閉じる</button>
+          <button value="save" class="primary small">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="sheet" id="consent" aria-labelledby="consentTitle">
+      <form method="dialog">
+        <h2 id="consentTitle">AIモデルをダウンロードします</h2>
+        <p id="consentBody"></p>
+        <p class="sheet-note">ダウンロードは初回のみです。2回目以降は端末に保存されたモデルを使います。</p>
+        <div class="sheet-actions">
+          <button value="cancel" class="text-btn">やめる</button>
+          <button value="ok" class="primary small">ダウンロードして開始</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

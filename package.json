@@ -1,0 +1,24 @@
+{
+  "name": "radio-lingua",
+  "version": "0.1.0",
+  "description": "海外の警察・消防・救急無線を端末内AIで日本語字幕にするWebアプリ",
+  "scripts": {
+    "prepare:ort": "node scripts/copy-ort.mjs",
+    "dev": "npm run prepare:ort && vite",
+    "build": "npm run prepare:ort && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:e2e": "node tests/e2e/run.mjs"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@huggingface/transformers": "^4.3.2"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.65.1",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  },
+  "private": true,
+  "type": "module"
+}
