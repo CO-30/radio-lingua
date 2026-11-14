@@ -100,6 +100,10 @@ function createEngine() {
   e.addEventListener('device', (ev: any) => setEngine({ device: ev.detail.device }));
   e.addEventListener('progress', (ev: any) => {
     const d = ev.detail;
+    if (d.stage === 'warmup') {
+      setEngine({ progress: 1, detail: d.message });
+      return;
+    }
     if (d.file) files.set(`${d.stage}:${d.file}`, { loaded: d.loaded || 0, total: d.total || 0 });
     let loaded = 0;
     let total = 0;

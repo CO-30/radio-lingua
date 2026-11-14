@@ -43,7 +43,7 @@ function EngineBadge() {
   const e = useApp((s) => s.engine);
   const text =
     e.status === 'ready'
-      ? `AI準備完了（${e.device === 'webgpu' ? 'GPU' : e.device === 'mock' ? 'テスト' : 'CPU'}）`
+      ? `AI準備完了（${e.device === 'webgpu' ? 'GPU' : e.device === 'mock' ? 'テスト' : e.device === 'mixed' ? 'GPU＋CPU' : 'CPU'}）`
       : e.status === 'loading'
         ? `AI準備中 ${Math.round(e.progress * 100)}%`
         : e.status === 'error'

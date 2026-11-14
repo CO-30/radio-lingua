@@ -61,6 +61,55 @@ function progressFor(stage) {
   };
 }
 
+// GPUによっては初回の推論（シェーダーの準備）に数分かかったり応答しなくなったりする。
+// 準備の段階で一度動かし（ウォームアップ）、時間内に終わらなければCPUに切り替える。
+const WARMUP_LIMIT_MS = 30000;
+const CALL_LIMIT_MS = 60000;
+function withTimeout(promise, ms, label) {
+  let t;
+  return Promise.race([promise, new Promise((_, rej) => (t = setTimeout(() => rej(new Error(`${label}が${ms / 1000}秒以内に終わりませんでした`)), ms)))]).finally(() => clearTimeout(t));
+}
+let asrInfo = null;
+let mtInfo = null;
+
+async function ensureCpuAsr(reason) {
+  if (asrInfo?.opts?.device === 'wasm') return;
+  post({ type: 'log', level: 'warn', message: `音声認識をCPUに切り替えます（${reason}）` });
+  const r = await loadWithFallback('automatic-speech-recognition', [asrInfo.id], [{ device: 'wasm', dtype: 'q8' }, { device: 'wasm', dtype: 'fp32' }], 'asr');
+  asr = r.p;
+  asrInfo = r;
+  device = 'wasm';
+  post({ type: 'device', device: mtInfo?.opts?.device === 'webgpu' ? 'mixed' : 'wasm' });
+}
+
+async function ensureCpuMt(reason) {
+  if (mtInfo?.opts?.device === 'wasm') return;
+  post({ type: 'log', level: 'warn', message: `翻訳をCPUに切り替えます（${reason}）` });
+  const opts = mtKind === 'chat' ? [{ device: 'wasm', dtype: 'q4' }, { device: 'wasm', dtype: 'q8' }] : [{ device: 'wasm', dtype: 'q8' }];
+  const r = await loadWithFallback(mtKind === 'chat' ? 'text-generation' : 'translation', [mtInfo.id], opts, 'mt');
+  mt = r.p;
+  mtInfo = r;
+  post({ type: 'device', device: asrInfo?.opts?.device === 'webgpu' ? 'mixed' : 'wasm' });
+}
+
+/** 1秒の小さな雑音で認識と翻訳を一度動かす */
+async function warmUp() {
+  const noise = new Float32Array(16000).map(() => (Math.random() - 0.5) * 0.002);
+  post({ type: 'progress', stage: 'warmup', message: 'AIの初回準備（最適化）をしています' });
+  try {
+    await withTimeout(asr(noise), WARMUP_LIMIT_MS, '音声認識の準備');
+  } catch (e) {
+    await ensureCpuAsr(e.message);
+    await asr(noise);
+  }
+  try {
+    await withTimeout(translate('Roger.'), WARMUP_LIMIT_MS, '翻訳の準備');
+  } catch (e) {
+    await ensureCpuMt(e.message);
+    await translate('Roger.');
+  }
+}
+
 async function loadWithFallback(task, ids, optsList, stage) {
   let lastErr;
   for (const id of ids) {
@@ -97,6 +146,7 @@ async function load({ asrKey, mtKey, baseUrl, forceWasm }) {
       : [{ device: 'wasm', dtype: 'q8' }, { device: 'wasm', dtype: 'fp32' }];
   const r1 = await loadWithFallback('automatic-speech-recognition', [a.id, ...a.fallbacks], asrOpts, 'asr');
   asr = r1.p;
+  asrInfo = r1;
 
   const m = MT_MODELS[mtKey];
   mtKind = m.kind;
@@ -108,8 +158,22 @@ async function load({ asrKey, mtKey, baseUrl, forceWasm }) {
       : [{ device: 'wasm', dtype: 'q8' }, { device: 'wasm', dtype: 'fp32' }];
   const r2 = await loadWithFallback(m.kind === 'chat' ? 'text-generation' : 'translation', [m.id], mtOpts, 'mt');
   mt = r2.p;
+  mtInfo = r2;
 
-  post({ type: 'ready', device, asr: { id: r1.id, ...r1.opts }, mt: { id: r2.id, ...r2.opts } });
+  await warmUp();
+  const devs = new Set([asrInfo.opts.device, mtInfo.opts.device]);
+  post({ type: 'ready', device: devs.size > 1 ? 'mixed' : [...devs][0], asr: { id: asrInfo.id, ...asrInfo.opts }, mt: { id: mtInfo.id, ...mtInfo.opts } });
+}
+
+/** 翻訳（GPUが応答しなければCPUに切り替えてやり直す） */
+async function translateSafe(text) {
+  try {
+    return await withTimeout(translate(text), CALL_LIMIT_MS, '翻訳');
+  } catch (e) {
+    if (mtInfo?.opts?.device !== 'webgpu') throw e;
+    await ensureCpuMt(e.message);
+    return translate(text);
+  }
 }
 
 async function translate(text) {
@@ -131,14 +195,23 @@ async function translate(text) {
 
 async function processAudio(id, audio) {
   const t0 = performance.now();
-  const rec = new ConfidenceRecorder();
-  const r = await asr(audio, { return_timestamps: false, chunk_length_s: 30, logits_processor: [rec] });
+  let rec = new ConfidenceRecorder();
+  let r;
+  try {
+    r = await withTimeout(asr(audio, { return_timestamps: false, chunk_length_s: 30, logits_processor: [rec] }), CALL_LIMIT_MS, '音声認識');
+  } catch (e) {
+    if (asrInfo?.opts?.device !== 'webgpu') throw e;
+    // GPUが応答しない場合はCPUで同じ交信をやり直す
+    await ensureCpuAsr(e.message);
+    rec = new ConfidenceRecorder();
+    r = await asr(audio, { return_timestamps: false, chunk_length_s: 30, logits_processor: [rec] });
+  }
   const t1 = performance.now();
   let words = [];
   try {
     words = tokensToWords(rec.steps.map((st) => ({ t: asr.tokenizer.decode([st.id], { skip_special_tokens: true }), p: st.p })));
   } catch {}
-  const cap = await buildCaption(r.text, translate);
+  const cap = await buildCaption(r.text, translateSafe);
   const t2 = performance.now();
   if (cap) cap.words = words;
   post({ type: 'result', id, caption: cap, rawEn: r.text, ms: { asr: Math.round(t1 - t0), mt: Math.round(t2 - t1) } });
@@ -161,7 +234,7 @@ self.onmessage = (ev) => {
     queue = queue
       .then(async () => {
         const t0 = performance.now();
-        const cap = await buildCaption(msg.text, translate);
+        const cap = await buildCaption(msg.text, translateSafe);
         post({ type: 'result', id: msg.id, caption: cap, rawEn: msg.text, ms: { asr: 0, mt: Math.round(performance.now() - t0) } });
       })
       .catch((e) => post({ type: 'error', stage: 'process', id: msg.id, message: String(e?.message || e) }));
