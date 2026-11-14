@@ -132,6 +132,7 @@ describe('AI音声：処理の重い端末では手順数を自動で減らす',
       v.stepsBySeq.set(seq, v.steps);
       v._adapt(seq, rtf * 3000, 3);
     };
+    v.firstMeasure = false; // 段階的な調整だけを確かめる
     feed(2.5);
     expect(v.steps).toBe(6);
     feed(1.6);
@@ -145,5 +146,29 @@ describe('AI音声：処理の重い端末では手順数を自動で減らす',
     feed(0.2);
     feed(0.2);
     expect(v.steps).toBe(5);
+  });
+});
+
+describe('AI音声：最初の計測で一気に合わせる', () => {
+  const mk = () => new AiVoice({ createWorker: () => ({ postMessage() {} }), AudioCtx: null });
+  const feed = (v, rtf) => {
+    const seq = ++v.seq;
+    v.stepsBySeq.set(seq, v.steps);
+    v._adapt(seq, rtf * 3000, 3);
+  };
+  it('重い端末（手順8で実時間の3倍）は最初から手順4', () => {
+    const v = mk();
+    feed(v, 3);
+    expect(v.steps).toBe(4);
+  });
+  it('やや重い端末（1.0倍）は手順6', () => {
+    const v = mk();
+    feed(v, 1.0);
+    expect(v.steps).toBe(6);
+  });
+  it('速い端末は手順8のまま', () => {
+    const v = mk();
+    feed(v, 0.3);
+    expect(v.steps).toBe(8);
   });
 });

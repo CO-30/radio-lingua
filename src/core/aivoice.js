@@ -42,6 +42,16 @@ export class AiVoice {
     this.rtfAvg = this.rtfAvg == null ? rtf : this.rtfAvg * 0.6 + rtf * 0.4;
     if (used !== this.steps) return;
     const ladder = AiVoice.STEPS;
+    if (this.firstMeasure !== false) {
+      // 最初の1回で、間に合いそうな手順数へすぐ切り替える（どの段階も聞きやすさは同等と確認済み）
+      this.firstMeasure = false;
+      const fit = ladder.find((s) => (rtf * s) / used < 0.8) ?? ladder[ladder.length - 1];
+      if (fit !== this.steps) {
+        this.steps = fit;
+        this.rtfAvg = null;
+        return;
+      }
+    }
     const i = ladder.indexOf(this.steps);
     if (this.rtfAvg > 0.9 && i < ladder.length - 1) this.steps = ladder[i + 1];
     else if (this.rtfAvg < 0.45 && i > 0) this.steps = ladder[i - 1];
