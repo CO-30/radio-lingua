@@ -1,6 +1,6 @@
 {
-  "date": "2026-11-14T10:41:31.791Z",
-  "commit": "df38ac805266ff8c5ef7c4c7292d3f481d35b9f2",
+  "date": "2026-11-14T11:15:19.059Z",
+  "commit": "41ecbcf1021e4e139c34beecb7e78645aec2cdc2",
   "segments": 6,
   "expected": 6,
   "results": [
@@ -12,10 +12,10 @@
         {
           "ref": "Dispatch to Engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross street is Oak Drive.",
           "en": "Dispatch to Engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross Street is Oak Drive.",
-          "ja": "消防車12番へ出動願います。メープル通り421番地で発生した建物火災の報告に応じる。交差道路はオーク・ドライブだ。",
+          "ja": "消防車12号へ出動願います。メープルアベニュー421番地で発生した建物火災の報告に応じる。交差道路はオーク・ドライブだ。",
           "wer": 0,
-          "asrMs": 1245,
-          "mtMs": 1379,
+          "asrMs": 996,
+          "mtMs": 1297,
           "sec": 8.4
         },
         {
@@ -23,17 +23,17 @@
           "en": "Engine 12 copies and route.",
           "ja": "消防車12、了解、現場へ向かう。",
           "wer": 0.2,
-          "asrMs": 1322,
-          "mtMs": 2,
+          "asrMs": 794,
+          "mtMs": 1,
           "sec": 2.9
         },
         {
           "ref": "Medic 7, priority one call. 65 year old male with chest pain at the Riverside shopping center.",
           "en": "Medic 7, Priority 1 call. 65-year-old male with chest pain at the Riverside Shopping Center.",
-          "ja": "救急車7、最優先の出動要請。リバーサイド・ショッピングセンターで胸の痛みに苦しむ65歳男性。",
+          "ja": "救急車7、最優先の出動要請。リバーサイド・ショッピングセンターで胸の痛みに苦しむ65歳の男性。",
           "wer": 0.059,
-          "asrMs": 1173,
-          "mtMs": 602,
+          "asrMs": 1024,
+          "mtMs": 611,
           "sec": 7.2
         },
         {
@@ -41,8 +41,8 @@
           "en": "Medic 7 responding, ETA 6 minutes.",
           "ja": "救急車7、出動する、到着予定時刻は、6分後です。",
           "wer": 0,
-          "asrMs": 978,
-          "mtMs": 422,
+          "asrMs": 851,
+          "mtMs": 340,
           "sec": 3.8
         },
         {
@@ -50,8 +50,8 @@
           "en": "Unit 23, traffic stop on Highway 9, Southbound near mile marker 40. Silver sedan, two occupants.",
           "ja": "ユニット23、ハイウェイ9号線の南行き、40マイル地点付近で、交通停止です。銀色のセダン、乗車者2名。",
           "wer": 0.063,
-          "asrMs": 1192,
-          "mtMs": 1233,
+          "asrMs": 949,
+          "mtMs": 1219,
           "sec": 7.8
         },
         {
@@ -59,7 +59,7 @@
           "en": "10-4-23 is on scene. Code 4 no further assistance needed.",
           "ja": "了解。23、現着。応援不要。",
           "wer": 0,
-          "asrMs": 1081,
+          "asrMs": 882,
           "mtMs": 1,
           "sec": 5
         }
@@ -73,10 +73,10 @@
         {
           "ref": "Dispatch to Engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross street is Oak Drive.",
           "en": "Dispatch to engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross Street is Oak Drive.",
-          "ja": "消防車12番へ出動願います。メープル通り421番地で発生した建物火災の報告に応じる。交差道路はオーク・ドライブだ。",
+          "ja": "消防車12号へ出動願います。メープルアベニュー421番地で発生した建物火災の報告に応じる。交差道路はオーク・ドライブだ。",
           "wer": 0,
-          "asrMs": 2824,
-          "mtMs": 1397,
+          "asrMs": 2274,
+          "mtMs": 1361,
           "sec": 8.4
         },
         {
@@ -84,7 +84,7 @@
           "en": "Engine 12 copies en route",
           "ja": "消防車12、了解、現場へ向かう。",
           "wer": 0,
-          "asrMs": 2342,
+          "asrMs": 1841,
           "mtMs": 1,
           "sec": 2.9
         },
@@ -93,8 +93,8 @@
           "en": "Medic 7, priority 1 call. 65 year old male with chest pain at the Riverside Shopping Center.",
           "ja": "救急車7、最優先の出動要請。リバーサイド・ショッピングセンターで胸の痛みに苦しむ65歳の男性。",
           "wer": 0.059,
-          "asrMs": 2685,
-          "mtMs": 684,
+          "asrMs": 2199,
+          "mtMs": 613,
           "sec": 7.2
         },
         {
@@ -102,8 +102,8 @@
           "en": "Medic 7 responding. ETA 6 minutes.",
           "ja": "救急車7、出動する。到着予定時刻は、6分後です。",
           "wer": 0,
-          "asrMs": 2551,
-          "mtMs": 372,
+          "asrMs": 1928,
+          "mtMs": 357,
           "sec": 3.8
         },
         {
@@ -111,8 +111,8 @@
           "en": "Unit 23, traffic stop on Highway 9, southbound near mile marker 40. Silver sedan, two occupants.",
           "ja": "ユニット23、ハイウェイ9号線、南行き、40マイル地点近くの交通停止だ。銀色のセダン、乗車者2名。",
           "wer": 0.063,
-          "asrMs": 2863,
-          "mtMs": 1277,
+          "asrMs": 2294,
+          "mtMs": 1137,
           "sec": 7.8
         },
         {
@@ -120,7 +120,7 @@
           "en": "10-4 23 is on scene. Code 4 no further assistance needed.",
           "ja": "了解。23、現着。応援不要。",
           "wer": 0,
-          "asrMs": 2638,
+          "asrMs": 2032,
           "mtMs": 1,
           "sec": 5
         }
@@ -136,8 +136,8 @@
           "en": "Dispatch to Engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross Street is Oak Drive.",
           "ja": "消防車第12号へ発送。421メープル通りで報告された火災に対応します。交差道路はオークドライブです。",
           "wer": 0,
-          "asrMs": 1178,
-          "mtMs": 508,
+          "asrMs": 957,
+          "mtMs": 454,
           "sec": 8.4
         },
         {
@@ -145,7 +145,7 @@
           "en": "Engine 12 copies and route.",
           "ja": "消防車12、了解、現場へ向かう。",
           "wer": 0.2,
-          "asrMs": 966,
+          "asrMs": 774,
           "mtMs": 1,
           "sec": 2.9
         },
@@ -154,8 +154,8 @@
           "en": "Medic 7, Priority 1 call. 65-year-old male with chest pain at the Riverside Shopping Center.",
           "ja": "救急車7、最優先の出動要請。症例は65歳男性, 胸痛を主訴に川沿いショッピングセンターを受診した。",
           "wer": 0.059,
-          "asrMs": 1175,
-          "mtMs": 346,
+          "asrMs": 993,
+          "mtMs": 313,
           "sec": 7.2
         },
         {
@@ -163,8 +163,8 @@
           "en": "Medic 7 responding, ETA 6 minutes.",
           "ja": "救急車7、出動する、推定時間6分。",
           "wer": 0,
-          "asrMs": 1031,
-          "mtMs": 89,
+          "asrMs": 796,
+          "mtMs": 87,
           "sec": 3.8
         },
         {
@@ -172,8 +172,8 @@
           "en": "Unit 23, traffic stop on Highway 9, Southbound near mile marker 40. Silver sedan, two occupants.",
           "ja": "ユニット23、ハイウェイZの交通機関停止、マイルマーカ40近くのサウスバウンド。シルバーセダン、二人の乗員。",
           "wer": 0.063,
-          "asrMs": 1210,
-          "mtMs": 449,
+          "asrMs": 967,
+          "mtMs": 408,
           "sec": 7.8
         },
         {
@@ -181,7 +181,7 @@
           "en": "10-4-23 is on scene. Code 4 no further assistance needed.",
           "ja": "了解。23、現着。応援不要。",
           "wer": 0,
-          "asrMs": 1121,
+          "asrMs": 905,
           "mtMs": 1,
           "sec": 5
         }
