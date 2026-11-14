@@ -1,7 +1,7 @@
 # 実モデル精度測定（自動）
 
-- 日時: 2026-11-14T22:58:19.963Z
-- コミット: 4a52528572f7e2e6ab8525bd2cd067de681e4b60
+- 日時: 2026-11-14T23:09:37.393Z
+- コミット: 38d6eb544cc02d0c5266d3f83195f54370b1ab8c
 - 音声: デモ交信（検出 6 / 正解 6 交信）
 - 実行環境: GitHub Actions（CPU）。ブラウザのGPU実行より遅い
 
@@ -11,12 +11,12 @@
 
 | WER | 認識結果 | 翻訳 | 認識/翻訳 ms |
 |---|---|---|---|
-| 0% | Dispatch to Engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross Street is Oak Drive. | 消防車12号へ出動願います。メープルアベニュー421番地で発生した建物火災の報告に応じる。交差道路はオーク・ドライブだ。 | 942/1263 |
-| 20% | Engine 12 copies and route. | 消防車12、了解、現場へ向かう。 | 729/1 |
-| 6% | Medic 7, Priority 1 call. 65-year-old male with chest pain at the Riverside Shopping Center. | 救急車7、最優先の出動要請。リバーサイド・ショッピングセンターで胸の痛みに苦しむ65歳の男性。 | 993/612 |
-| 0% | Medic 7 responding, ETA 6 minutes. | 救急車7、出動する、到着予定時刻は、6分後です。 | 818/465 |
-| 6% | Unit 23, traffic stop on Highway 9, Southbound near mile marker 40. Silver sedan, two occupants. | ユニット23、ハイウェイ9号線の南行き、40マイル地点付近で、交通停止です。銀色のセダン、乗車者2名。 | 1087/1279 |
-| 0% | 10-4-23 is on scene. Code 4 no further assistance needed. | 了解。23、現着。応援不要。 | 1031/1 |
+| 0% | Dispatch to Engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross Street is Oak Drive. | 消防車12号へ出動願います。メープルアベニュー421番地で発生した建物火災の報告に応じる。交差道路はオーク・ドライブだ。 | 699/886 |
+| 20% | Engine 12 copies and route. | 消防車12、了解、現場へ向かう。 | 459/1 |
+| 6% | Medic 7, Priority 1 call. 65-year-old male with chest pain at the Riverside Shopping Center. | 救急車7、最優先の出動要請。リバーサイド・ショッピングセンターで胸の痛みに苦しむ65歳の男性。 | 597/558 |
+| 0% | Medic 7 responding, ETA 6 minutes. | 救急車7、出動する、到着予定時刻は、6分後です。 | 493/243 |
+| 6% | Unit 23, traffic stop on Highway 9, Southbound near mile marker 40. Silver sedan, two occupants. | ユニット23、ハイウェイ9号線の南行き、40マイル地点付近で、交通停止です。銀色のセダン、乗車者2名。 | 569/769 |
+| 0% | 10-4-23 is on scene. Code 4 no further assistance needed. | 了解。23、現着。応援不要。 | 507/1 |
 
 ## onnx-community/whisper-small.en (q8) + onnx-community/LFM2-350M-ENJP-MT-ONNX (q4)
 
@@ -24,12 +24,12 @@
 
 | WER | 認識結果 | 翻訳 | 認識/翻訳 ms |
 |---|---|---|---|
-| 0% | Dispatch to engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross Street is Oak Drive. | 消防車12号へ出動願います。メープルアベニュー421番地で発生した建物火災の報告に応じる。交差道路はオーク・ドライブだ。 | 2046/1226 |
-| 0% | Engine 12 copies en route | 消防車12、了解、現場へ向かう。 | 1650/1 |
-| 6% | Medic 7, priority 1 call. 65 year old male with chest pain at the Riverside Shopping Center. | 救急車7、最優先の出動要請。リバーサイド・ショッピングセンターで胸の痛みに苦しむ65歳の男性。 | 2011/572 |
-| 0% | Medic 7 responding. ETA 6 minutes. | 救急車7、出動する。到着予定時刻は、6分後です。 | 1768/333 |
-| 6% | Unit 23, traffic stop on Highway 9, southbound near mile marker 40. Silver sedan, two occupants. | ユニット23、ハイウェイ9号線、南行き、40マイル地点近くの交通停止だ。銀色のセダン、乗車者2名。 | 2112/1095 |
-| 0% | 10-4 23 is on scene. Code 4 no further assistance needed. | 了解。23、現着。応援不要。 | 1959/1 |
+| 0% | Dispatch to engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross Street is Oak Drive. | 消防車12号へ出動願います。メープルアベニュー421番地で発生した建物火災の報告に応じる。交差道路はオーク・ドライブだ。 | 1441/835 |
+| 0% | Engine 12 copies en route | 消防車12、了解、現場へ向かう。 | 1012/1 |
+| 6% | Medic 7, priority 1 call. 65 year old male with chest pain at the Riverside Shopping Center. | 救急車7、最優先の出動要請。リバーサイド・ショッピングセンターで胸の痛みに苦しむ65歳の男性。 | 1262/406 |
+| 0% | Medic 7 responding. ETA 6 minutes. | 救急車7、出動する。到着予定時刻は、6分後です。 | 1090/254 |
+| 6% | Unit 23, traffic stop on Highway 9, southbound near mile marker 40. Silver sedan, two occupants. | ユニット23、ハイウェイ9号線、南行き、40マイル地点近くの交通停止だ。銀色のセダン、乗車者2名。 | 1356/782 |
+| 0% | 10-4 23 is on scene. Code 4 no further assistance needed. | 了解。23、現着。応援不要。 | 1201/1 |
 
 ## onnx-community/whisper-base.en (q8) + Kadonox/fugumt-en-ja-onnx (q8)
 
@@ -37,10 +37,10 @@
 
 | WER | 認識結果 | 翻訳 | 認識/翻訳 ms |
 |---|---|---|---|
-| 0% | Dispatch to Engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross Street is Oak Drive. | 消防車第12号へ発送。421メープル通りで報告された火災に対応します。交差道路はオークドライブです。 | 991/369 |
-| 20% | Engine 12 copies and route. | 消防車12、了解、現場へ向かう。 | 1079/1 |
-| 6% | Medic 7, Priority 1 call. 65-year-old male with chest pain at the Riverside Shopping Center. | 救急車7、最優先の出動要請。症例は65歳男性, 胸痛を主訴に川沿いショッピングセンターを受診した。 | 1025/295 |
-| 0% | Medic 7 responding, ETA 6 minutes. | 救急車7、出動する、推定時間6分。 | 962/70 |
-| 6% | Unit 23, traffic stop on Highway 9, Southbound near mile marker 40. Silver sedan, two occupants. | ユニット23、ハイウェイZの交通機関停止、マイルマーカ40近くのサウスバウンド。シルバーセダン、二人の乗員。 | 1281/308 |
-| 0% | 10-4-23 is on scene. Code 4 no further assistance needed. | 了解。23、現着。応援不要。 | 1097/1 |
+| 0% | Dispatch to Engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross Street is Oak Drive. | 消防車第12号へ発送。421メープル通りで報告された火災に対応します。交差道路はオークドライブです。 | 752/283 |
+| 20% | Engine 12 copies and route. | 消防車12、了解、現場へ向かう。 | 468/1 |
+| 6% | Medic 7, Priority 1 call. 65-year-old male with chest pain at the Riverside Shopping Center. | 救急車7、最優先の出動要請。症例は65歳男性, 胸痛を主訴に川沿いショッピングセンターを受診した。 | 577/207 |
+| 0% | Medic 7 responding, ETA 6 minutes. | 救急車7、出動する、推定時間6分。 | 467/60 |
+| 6% | Unit 23, traffic stop on Highway 9, Southbound near mile marker 40. Silver sedan, two occupants. | ユニット23、ハイウェイZの交通機関停止、マイルマーカ40近くのサウスバウンド。シルバーセダン、二人の乗員。 | 582/242 |
+| 0% | 10-4-23 is on scene. Code 4 no further assistance needed. | 了解。23、現着。応援不要。 | 562/1 |
 
