@@ -55,7 +55,7 @@ async function hasWebGPU() {
   }
 }
 
-async function load(voiceKey) {
+async function load(voiceKey, forceDevice) {
   ort.env.wasm.wasmPaths = {
     mjs: new URL(ortMjsUrl, self.location.href).href,
     wasm: new URL(ortWasmUrl, self.location.href).href,
@@ -69,7 +69,7 @@ async function load(voiceKey) {
   if (!sessions) {
     cfgs = JSON.parse(new TextDecoder().decode(await fetchCached('onnx/tts.json', onBytes)));
     indexer = JSON.parse(new TextDecoder().decode(await fetchCached('onnx/unicode_indexer.json', onBytes)));
-    const providers = (await hasWebGPU()) ? [['webgpu'], ['wasm']] : [['wasm']];
+    const providers = forceDevice ? [[forceDevice]] : (await hasWebGPU()) ? [['webgpu'], ['wasm']] : [['wasm']];
     const bufs = {};
     for (const name of SUPERTONIC.models) bufs[name] = new Uint8Array(await fetchCached(`onnx/${name}.onnx`, onBytes));
     let lastErr = null;
@@ -106,7 +106,7 @@ async function loadStyle(voiceKey, onBytes = () => {}) {
 self.onmessage = (e) => {
   const m = e.data;
   if (m.type === 'load') {
-    queue = queue.then(() => load(m.voice)).catch((err) => post({ type: 'error', error: String(err?.message || err) }));
+    queue = queue.then(() => load(m.voice, m.device)).catch((err) => post({ type: 'error', error: String(err?.message || err) }));
   } else if (m.type === 'cancel') {
     cancelBefore = m.before;
   } else if (m.type === 'speak') {
@@ -115,7 +115,7 @@ self.onmessage = (e) => {
       try {
         await loadStyle(m.voice);
         const t0 = performance.now();
-        const { pcm, sampleRate, duration } = await synthesize(ort, sessions, cfgs, indexer, styles[m.voice], m.text, { speed: m.speed || 1 });
+        const { pcm, sampleRate, duration } = await synthesize(ort, sessions, cfgs, indexer, styles[m.voice], m.text, { speed: m.speed || 1, steps: m.steps });
         if (m.seq < cancelBefore) return post({ type: 'skipped', seq: m.seq });
         post({ type: 'audio', seq: m.seq, pcm, sampleRate, ms: Math.round(performance.now() - t0), duration }, [pcm.buffer]);
       } catch (err) {

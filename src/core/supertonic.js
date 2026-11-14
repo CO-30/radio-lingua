@@ -110,7 +110,8 @@ export function styleTensors(ort, json) {
  * 1文を音声にする。戻り値は 44.1kHz のモノラル Float32Array。
  * sessions: { duration_predictor, text_encoder, vector_estimator, vocoder }
  */
-export async function synthesize(ort, sessions, cfgs, indexer, style, text, { speed = 1.0, steps = SUPERTONIC.steps, rand = Math.random } = {}) {
+export async function synthesize(ort, sessions, cfgs, indexer, style, text, { speed = 1.0, steps, rand = Math.random } = {}) {
+  steps = steps || SUPERTONIC.steps;
   const ids = encodeText(indexer, text, 'ja');
   const textIds = new ort.Tensor('int64', ids, [1, ids.length]);
   const textMask = new ort.Tensor('float32', new Float32Array(ids.length).fill(1), [1, 1, ids.length]);
