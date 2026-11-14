@@ -17,7 +17,7 @@ for (const v of voices) {
   const s = Date.now();
   for (const text of lines) {
     const { wav, duration } = await tts.call(text, 'ja', style, 8, 1.0, 0.45);
-    parts.push(...wav);
+    for (const x of wav) parts.push(x);
     audioSec += duration[0];
   }
   const ms = Date.now() - s;
