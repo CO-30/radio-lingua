@@ -10,6 +10,7 @@ import { countryCenter } from './geo';
 import { runBench } from '../core/bench.js';
 import { matchAlerts } from '../core/alerts.js';
 import { playChime } from '../core/chime.js';
+import { shouldAutoStart } from '../core/autostart.js';
 
 const SETTINGS_KEY = 'radiolingua.settings.v1';
 const STATIONS_KEY = 'radiolingua.stations.v1';
@@ -131,7 +132,8 @@ function createEngine() {
     if (pendingStart) {
       const p = pendingStart;
       pendingStart = null;
-      void startLive(p.stationId, p.file);
+      if (shouldAutoStart(p.at, Date.now(), document.visibilityState === 'visible')) void startLive(p.stationId, p.file);
+      else patchSession(p.stationId, { notice: 'AIの準備ができました。「受信して翻訳」を押すと受信を始めます。' });
     }
   });
   e.addEventListener('error', (ev: any) => {
@@ -152,7 +154,7 @@ function createEngine() {
   return e;
 }
 
-let pendingStart: { stationId: string; file?: File } | null = null;
+let pendingStart: { stationId: string; file?: File; at: number } | null = null;
 
 function needsConsent() {
   return !useMock && !localStorage.getItem('radiolingua.downloaded.' + modelKey());
@@ -256,7 +258,7 @@ export async function startLive(stationId: string, file?: File) {
     return;
   }
   if (!ensureEngine()) {
-    pendingStart = { stationId, file };
+    pendingStart = { stationId, file, at: Date.now() };
     return;
   }
   const c = captureFor(stationId);
