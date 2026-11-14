@@ -99,6 +99,9 @@ describe('buildCaption', () => {
     expect(await buildCaption('Thank you.', async () => 'x')).toBeNull();
     expect(await buildCaption('', async () => 'x')).toBeNull();
   });
+  it('誤訳しやすい用語を補正する', () => {
+    expect(polishJapanese('メープル通りで発生した構造物の火災。クロス・ストリートはオーク・ドライブ')).toBe('メープル通りで発生した建物火災。交差道路はオーク・ドライブ');
+  });
   it('日本語の後処理（記号・繰り返し）', () => {
     expect(polishJapanese('"了解 。"')).toBe('了解。');
     expect(polishJapanese('- 了解')).toBe('了解');
@@ -110,6 +113,11 @@ describe('buildCaption', () => {
     };
     expect((await buildCaption('Engine 12 copies, en route.', mt)).ja).toBe('消防車12、了解、現場へ向かう。');
     expect((await buildCaption('10-4.', mt)).ja).toBe('了解。');
+    expect((await buildCaption('Engine 12 copies en route.', mt)).ja).toBe('消防車12、了解、現場へ向かう。');
+    expect((await buildCaption('Medic 7 responding.', mt)).ja).toBe('救急車7、出動する。');
+    expect((await buildCaption('Medic 7, priority 1 call.', mt)).ja).toBe('救急車7、最優先の出動要請。');
+    expect((await buildCaption('10-4-23 is on scene.', mt)).ja).toBe('了解。23、現着。');
+    expect((await buildCaption('10-4 23 is on scene.', mt)).ja).toBe('了解。23、現着。');
     expect((await buildCaption('Code 4, no further assistance needed.', mt)).ja).toBe('応援不要。');
   });
   it('定型句と自由文が混ざった文は分けて訳す', async () => {

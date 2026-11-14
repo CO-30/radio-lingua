@@ -81,11 +81,13 @@ export function normalizeRadioText(input) {
   });
   text = text.replace(/\b10[\s.]?(\d{1,3})\b/g, (m, n) => (TEN_CODES[`10-${n}`] ? `10-${n}` : m));
 
-  text = text.replace(/\b10-(\d{1,3})\b/g, (m) => {
-    const c = TEN_CODES[m];
+  text = text.replace(/\b10-(\d{1,3})\b(-|\s+(?=\d))?/g, (m, n, dash) => {
+    const code = `10-${n}`;
+    const c = TEN_CODES[code];
     if (!c) return m;
-    if (!codes.find((x) => x.code === m)) codes.push({ code: m, ja: c.ja });
-    return c.en;
+    if (!codes.find((x) => x.code === code)) codes.push({ code, ja: c.ja });
+    // "10-4-23 is on scene" のように呼出符号と続く場合は文を区切る
+    return dash ? `${c.en}. ` : c.en;
   });
 
   text = text.replace(/\bcode (two|three|four|2|3|4)\b/gi, (m, n) => {
@@ -209,6 +211,8 @@ export const PHRASES = {
   'out of service': '業務外',
   'priority one call': '最優先の出動要請',
   'priority one': '最優先',
+  'priority 1 call': '最優先の出動要請',
+  'priority 1': '最優先',
   'highest priority call': '最優先の出動要請',
   'returning to station': '帰署する',
   'assignment completed': '任務完了',
@@ -231,13 +235,28 @@ export function dedupeSentences(sentences) {
   return out;
 }
 
+/** 小型翻訳モデルが誤訳しやすい無線・消防用語の補正 */
+export const JA_FIXES = [
+  [/構造物の火災|構造火災|建造物の火災/g, '建物火災'],
+  [/クロス・?ストリート/g, '交差道路'],
+  [/メディック/g, '救急隊'],
+  [/交通検問所|停止信号/g, '交通停止'],
+  [/ロジャー/g, '了解'],
+];
+
+export function fixTerms(ja) {
+  return JA_FIXES.reduce((t, [re, to]) => t.replace(re, to), ja);
+}
+
 /** 翻訳後の日本語の後処理 */
 export function polishJapanese(ja) {
   let t = ja
     .replace(/^[\s\-・*「『"]+|[」』"]+$/g, '')
     .replace(/\s+([、。])/g, '$1')
     .replace(/\s{2,}/g, ' ')
+    .replace(/[“”"]/g, '')
     .trim();
+  t = fixTerms(t);
   // 小型モデルの言い直し・繰り返し（「40マイル標識付近の40マイル標識付近」）を1回にまとめる
   for (let i = 0; i < 3; i++) t = t.replace(/(.{5,}?)(?:の|、|。| )?\1/g, '$1');
   return t;
@@ -247,13 +266,33 @@ function endSentence(ja) {
   return /[。！？!?」]$/.test(ja) ? ja : `${ja}。`;
 }
 
+const MAX_PHRASE_WORDS = Math.max(...Object.keys(PHRASES).map((k) => k.split(' ').length));
+
+/** 文全体が定型句の並びだけで書けるなら、その訳を「、」でつないで返す（"copies en route" → 了解、現場へ向かう） */
+export function tilePhrases(text) {
+  const w = phraseKey(text).split(' ').filter(Boolean);
+  if (!w.length) return null;
+  const best = Array(w.length + 1).fill(null);
+  best[0] = [];
+  for (let i = 0; i < w.length; i++) {
+    if (!best[i]) continue;
+    for (let n = Math.min(MAX_PHRASE_WORDS, w.length - i); n >= 1; n--) {
+      const ja = PHRASES[w.slice(i, i + n).join(' ')];
+      if (ja && (!best[i + n] || best[i + n].length > best[i].length + 1)) best[i + n] = [...best[i], ja];
+    }
+  }
+  return best[w.length] ? best[w.length].join('、') : null;
+}
+
 /** 1文を訳す。定型句は辞書、長い文は読点で区切って小分けに機械翻訳する（小型モデルの暴走防止） */
 async function translateClause(rest, translate) {
   const key = phraseKey(rest);
   if (!key) return '';
   if (PHRASES[key]) return PHRASES[key];
+  const tiled = tilePhrases(rest);
+  if (tiled) return tiled;
   const clauses = rest.split(/,\s+/).filter((c) => phraseKey(c));
-  const anyPhrase = clauses.some((c) => PHRASES[phraseKey(c)]);
+  const anyPhrase = clauses.some((c) => tilePhrases(c));
   if (clauses.length > 1 && (anyPhrase || rest.length > 60)) {
     const out = [];
     let buf = [];
@@ -262,10 +301,10 @@ async function translateClause(rest, translate) {
       buf = [];
     };
     for (const c of clauses) {
-      const k = phraseKey(c);
-      if (PHRASES[k]) {
+      const t = tilePhrases(c);
+      if (t) {
         await flush();
-        out.push(PHRASES[k]);
+        out.push(t);
       } else {
         buf.push(c);
         if (buf.join(', ').length > 40) await flush();
@@ -292,6 +331,13 @@ export async function translateRadio(text, units, translate) {
     if (unit) {
       prefix = unit.ja;
       rest = rest.slice(unit.en.length).replace(/^[\s,]+/, '');
+    } else {
+      // "23 is on scene" のような番号だけの呼出符号（残りが定型句のときだけ）
+      const m = rest.match(/^(\d{1,4})[\s,]+(.+)$/);
+      if (m && tilePhrases(m[2])) {
+        prefix = m[1];
+        rest = m[2];
+      }
     }
     const key = phraseKey(rest);
     const ja = await translateClause(rest, translate);

@@ -48,7 +48,7 @@ export function isMobileUA(ua = typeof navigator !== 'undefined' ? navigator.use
 
 /** 端末に合わせた初期設定 */
 export function defaultModelConfig({ webgpu, mobile }) {
-  if (webgpu && !mobile) return { asr: 'standard', mt: 'lfm2' };
+  if (webgpu && !mobile) return { asr: 'accurate', mt: 'lfm2' }; // 実測で base より誤り率が約半分（docs/benchmarks）
   if (webgpu) return { asr: 'light', mt: 'lfm2' };
   return { asr: 'light', mt: 'fugu' };
 }
