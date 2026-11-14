@@ -1,0 +1,41 @@
+name: TTS samples (Supertonic 3)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['scripts/tts-eval/**', '.github/workflows/tts-eval.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg git-lfs
+      - name: Supertonic のサンプルコード（MIT）
+        run: |
+          git clone https://github.com/supertone-inc/supertonic st
+          git -C st checkout 1e9799e964ea4c0dad7cde993b65c3c813a7b373
+          cd st/nodejs && npm install --no-audit --no-fund
+      - name: モデル（OpenRAIL-M）を取得
+        run: |
+          pip install -q huggingface_hub
+          hf download Supertone/supertonic-3 --revision 3cadd1ee6394adea1bd021217a0e650ede09a323 --include "onnx/*" "voice_styles/*" "LICENSE" --local-dir m/fp32
+          hf download soniqo/Supertonic-3-ONNX-INT8 --include "onnx/*" "voice_styles/*" --local-dir m/int8
+          du -sh m/*/onnx
+      - run: node scripts/tts-eval/gen.mjs st/nodejs m/int8 int8 out
+      - run: node scripts/tts-eval/gen.mjs st/nodejs m/fp32 fp32 out
+      - name: mp3 に変換
+        run: for f in out/*.wav; do ffmpeg -loglevel error -i "$f" -ac 1 -ar 24000 -b:a 64k "${f%.wav}.mp3"; done; ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tts-samples
+          path: |
+            out/*.mp3
+            out/*.json
