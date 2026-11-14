@@ -2,10 +2,12 @@
 // node ours.mjs <supertonicのnodejsディレクトリ> <モデルdir> <出力dir>
 import fs from 'fs';
 import path from 'path';
-import * as ort from 'onnxruntime-node';
+import { createRequire } from 'module';
 import { synthesize, styleTensors, SUPERTONIC } from '../../src/core/supertonic.js';
 const [, , helperDir, modelDir, outDir] = process.argv;
 const ref = await import(path.resolve(helperDir, 'helper.js'));
+// 同じプロセスで2つの版を読み込むと衝突するので、公式サンプルと同じ ONNX Runtime を使う
+const ort = createRequire(path.resolve(helperDir, 'package.json'))('onnxruntime-node');
 const lines = JSON.parse(fs.readFileSync(new URL('./lines.json', import.meta.url)));
 const onnx = path.join(modelDir, 'onnx');
 const cfgs = JSON.parse(fs.readFileSync(path.join(onnx, 'tts.json')));

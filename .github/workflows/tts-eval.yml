@@ -32,7 +32,6 @@ jobs:
           pip install -q huggingface_hub
           hf download Supertone/supertonic-3 --revision 3cadd1ee6394adea1bd021217a0e650ede09a323 --include "onnx/*" --include "voice_styles/*" --include "LICENSE" --local-dir m/fp32
           du -sh m/*/onnx
-      - run: npm ci --ignore-scripts && npm rebuild onnxruntime-node
       - name: アプリの実装が公式サンプルと一致するか
         run: node scripts/tts-eval/ours.mjs st/nodejs m/fp32 out
       - name: mp3 に変換
