@@ -109,6 +109,11 @@ export function SettingsDialog() {
           </label>
         </fieldset>
         <p className="sheet-note">AIのモデルを変えた場合は、次に受信を始めたときに読み込み直します。</p>
+        <p className="sheet-note">
+          <a href="#/about" onClick={close}>
+            このアプリについて・利用規約・プライバシー・ライセンス
+          </a>
+        </p>
         <div className="sheet-actions">
           <button type="button" className="btn btn-ghost" onClick={close}>
             閉じる

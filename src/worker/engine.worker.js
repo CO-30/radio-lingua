@@ -2,6 +2,9 @@
 // 音声認識: Whisper / 翻訳: LFM2-ENJP-MT または FuguMT（transformers.js + ONNX Runtime Web）
 
 import { pipeline, env, LogitsProcessor } from '@huggingface/transformers';
+// AI実行環境（ONNX Runtime）は自サイトから配信する。Vite が同梱するファイルを指定し、二重に配信しない
+import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url';
+import ortMjsUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url';
 import { ASR_MODELS, MT_MODELS, revisionOf } from '../core/models.js';
 import { buildCaption } from '../core/radio.js';
 import { tokensToWords } from '../core/confidence.js';
@@ -126,10 +129,10 @@ async function loadWithFallback(task, ids, optsList, stage) {
   throw lastErr;
 }
 
-async function load({ asrKey, mtKey, baseUrl, forceWasm }) {
+async function load({ asrKey, mtKey, forceWasm }) {
   env.backends.onnx.wasm.wasmPaths = {
-    mjs: `${baseUrl}ort/ort-wasm-simd-threaded.asyncify.mjs`,
-    wasm: `${baseUrl}ort/ort-wasm-simd-threaded.asyncify.wasm`,
+    mjs: new URL(ortMjsUrl, self.location.href).href,
+    wasm: new URL(ortWasmUrl, self.location.href).href,
   };
   device = forceWasm ? 'wasm' : await detectDevice();
   post({ type: 'device', device });

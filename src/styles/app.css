@@ -431,6 +431,46 @@ h3 {
   color: var(--dim);
 }
 
+.rail-about {
+  margin-top: auto;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--dim);
+  text-decoration: none;
+  padding: 8px 4px;
+}
+.rail-about:hover,
+.rail-about.is-on {
+  color: var(--blue);
+}
+.tabs {
+  margin-bottom: 18px;
+}
+.legal {
+  max-width: 46em;
+}
+.legal section {
+  margin-bottom: 22px;
+}
+.legal h2 {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+.legal p,
+.legal li {
+  color: var(--muted);
+  font-size: 14.5px;
+  margin: 0 0 6px;
+}
+.legal ul {
+  padding-left: 1.2em;
+  margin: 0 0 8px;
+}
+.legal .notice {
+  margin-bottom: 20px;
+}
+
 /* ---------- 地図画面 ---------- */
 .mapview {
   display: grid;
@@ -1456,7 +1496,8 @@ h3 {
     -webkit-backdrop-filter: blur(12px);
     z-index: 40;
   }
-  .rail .brand {
+  .rail .brand,
+  .rail-about {
     display: none;
   }
   .nav {

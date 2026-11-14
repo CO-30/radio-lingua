@@ -134,12 +134,20 @@ async function run(name, contextOpts, mobile) {
   await page.waitForSelector('.tx');
   check((await page.locator('.tx').count()) === 6, '再読み込み後も履歴が残る');
 
+  // 8. このアプリについて・規約
+  await page.goto(`${base}#/about/terms`);
+  await page.waitForSelector('.legal');
+  check((await page.locator('.legal h2').first().textContent()).includes('第1条'), '利用規約（案）が表示される');
+  check(await page.locator('.legal .notice-warn').isVisible(), '規約が弁護士確認前の案であると明示される');
+  await page.locator('.tabs .chip', { hasText: 'ライセンス' }).click();
+  check((await page.locator('.legal').textContent()).includes('Natural Earth'), 'ライセンス表示');
+
   if (mobile) {
     const box = await page.locator('.rail').boundingBox();
     check(box && box.y > 700, 'スマホ：メニューは画面下にある');
   }
   let overflowOk = true;
-  for (const r of ['map', 'stations', 'live/demo', 'favorites', 'history']) {
+  for (const r of ['map', 'stations', 'live/demo', 'favorites', 'history', 'about/privacy']) {
     await page.goto(`${base}#/${r}`);
     await page.waitForTimeout(300);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -153,7 +161,27 @@ async function run(name, contextOpts, mobile) {
   await ctx.close();
 }
 
+/** ホーム画面アプリとして：Service Worker が登録され、圏外でも画面が開く */
+async function runOffline() {
+  console.log('\n== offline ==');
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  await page.goto('http://localhost:4174/#/map');
+  await page.waitForFunction(() => navigator.serviceWorker?.controller || navigator.serviceWorker?.ready.then(() => true), null, { timeout: 15000 });
+  await page.reload();
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 15000 });
+  await page.waitForSelector('.worldmap-canvas');
+  const manifest = await page.evaluate(() => fetch('manifest.webmanifest').then((r) => r.json()));
+  check(manifest.short_name === 'RADIO LINGUA' && manifest.icons.length === 3, 'アプリ情報（manifest）とアイコンがある');
+  await ctx.setOffline(true);
+  await page.reload();
+  await page.waitForSelector('.worldmap-canvas', { timeout: 10000 }).catch(() => {});
+  check(await page.locator('.worldmap-canvas').isVisible(), '圏外でも保存済みの画面が開く');
+  await ctx.close();
+}
+
 try {
+  await runOffline();
   await run('desktop', { viewport: { width: 1440, height: 900 } }, false);
   await run('mobile', { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' }, true);
 } finally {

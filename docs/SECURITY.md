@@ -19,6 +19,7 @@
 | AIモデルの改ざん・すり替え | 版（コミットID）を固定 | `src/core/models.js` の `REVISIONS` |
 | 実行環境（ONNX Runtime）の配信 | 自サイトから配信（外部CDNに依存しない） | `scripts/copy-ort.mjs` |
 | 外部の地図・書体サービス | 使用しない（地図データ・書体とも自前配信） | ビルド設定（data: 埋め込みも禁止） |
+| Service Worker | 自サイトの画面・資源だけを保存。外部（AIモデル）の通信には関与しない | public/sw.js |
 | リファラー送信 | 送らない | `<meta name="referrer" content="no-referrer">` |
 | Cookie・解析ツール・広告 | 使用していない | コード確認 |
 | 暗号化通信の復号・不正アクセス | 該当機能なし | コード確認 |

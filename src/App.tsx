@@ -7,6 +7,7 @@ import { MapView } from './views/MapView';
 import { LiveView } from './views/LiveView';
 import { StationsView, FavoritesView, HistoryView } from './views/ListViews';
 import { SettingsDialog, ConsentDialog, AddStationDialog } from './views/Dialogs';
+import { AboutView } from './views/AboutView';
 import { IconGlobe, IconTower, IconWave, IconStar, IconClock, IconSliders } from './components/Icons';
 
 const NAV = [
@@ -98,6 +99,11 @@ export function App() {
             );
           })}
         </ul>
+        <a className={`rail-about${route.name === 'about' ? ' is-on' : ''}`} href="#/about">
+          このアプリ
+          <br />
+          について
+        </a>
       </nav>
       <div className="frame">
         <header className="topbar">
@@ -118,7 +124,8 @@ export function App() {
           {route.name === 'live' && <LiveView stationId={route.arg || lastStation} />}
           {route.name === 'favorites' && <FavoritesView />}
           {route.name === 'history' && <HistoryView />}
-          {!NAV.some((n) => n.name === route.name) && (
+          {route.name === 'about' && <AboutView tab={route.arg} />}
+          {!NAV.some((n) => n.name === route.name) && route.name !== 'about' && (
             <section className="pageview">
               <p className="empty">
                 ページが見つかりません。<button className="text-btn" onClick={() => navigate('/map')}>地図へ戻る</button>

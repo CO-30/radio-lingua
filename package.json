@@ -3,9 +3,8 @@
   "version": "0.1.0",
   "description": "海外の警察・消防・救急無線を端末内AIで日本語字幕にするWebアプリ",
   "scripts": {
-    "prepare:ort": "node scripts/copy-ort.mjs",
-    "dev": "npm run prepare:ort && vite",
-    "build": "npm run prepare:ort && vite build",
+    "dev": "vite",
+    "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "node tests/e2e/run.mjs"
@@ -14,6 +13,7 @@
   "dependencies": {
     "@fontsource/chakra-petch": "^5.3.0",
     "@huggingface/transformers": "^4.3.2",
+    "onnxruntime-web": "^1.31.0-dev.20260914-8d85527a0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
