@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { findTerms } from '../../src/core/glossary.js';
-import { tokensToWords, uncertainWords, markText } from '../../src/core/confidence.js';
+import { tokensToWords, uncertainWords, markText, stepConfidence, vocabKey } from '../../src/core/confidence.js';
 import { DEMO_STATION, makeUserStation, filterStations, countByCountry } from '../../src/core/stations.js';
 import worldmap from '../../src/data/worldmap.json';
 
@@ -35,6 +35,23 @@ describe('確信度', () => {
     const parts = markText('Silver Civan, two occupants', tokensToWords(tokens));
     expect(parts.filter((p) => p.uncertain).map((p) => p.text)).toEqual(['Civan,']);
     expect(parts.map((p) => p.text).join('')).toBe('Silver Civan, two occupants');
+  });
+  it('表記だけ違う候補（大文字小文字・句読点）の確率は合算する', () => {
+    const keys = [' Southbound', ' southbound', ' Northbound', '.', ','].map(vocabKey);
+    // Southbound と southbound が拮抗しても、どちらも同じ語なので確信度は高い
+    const r = stepConfidence([2.0, 1.9, -1, -5, -5], keys);
+    expect(r.id).toBe(0);
+    expect(r.p).toBeGreaterThan(0.9);
+    // 合算しない場合は約0.5に見える（従来の誤検知の原因）
+    expect(stepConfidence([2.0, 1.9, -1, -5, -5], null).p).toBeLessThan(0.55);
+  });
+  it('違う語と迷っているときは低い確信度になる', () => {
+    const keys = [' seven', ' salmon', ' seventy'].map(vocabKey);
+    expect(stepConfidence([1.0, 0.9, -3], keys).p).toBeLessThan(0.6);
+  });
+  it('記号だけの語は判定しない', () => {
+    const keys = ['.', ',', ' and'].map(vocabKey);
+    expect(stepConfidence([1.0, 0.95, 0.9], keys)).toEqual({ id: 0, p: 1 });
   });
   it('確信度がなければ全体を1断片で返す', () => expect(markText('abc', [])).toEqual([{ text: 'abc', uncertain: false }]));
 });

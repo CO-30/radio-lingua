@@ -7,32 +7,38 @@ import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url
 import ortMjsUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url';
 import { ASR_MODELS, MT_MODELS, revisionOf } from '../core/models.js';
 import { buildCaption } from '../core/radio.js';
-import { tokensToWords } from '../core/confidence.js';
+import { tokensToWords, stepConfidence, vocabKey } from '../core/confidence.js';
 
-/** デコードの各段で、選ばれた語の確率を記録する（ロジットは変更しない） */
+/** デコードの各段で、選ばれた語の確信度を記録する（ロジットは変更しない） */
 class ConfidenceRecorder extends LogitsProcessor {
-  constructor() {
+  constructor(keys) {
     super();
     this.steps = [];
+    this.keys = keys;
   }
   _call(inputIds, logits) {
     const vocab = logits.dims.at(-1);
-    const d = logits.data;
-    let max = -Infinity;
-    let arg = 0;
-    for (let i = 0; i < vocab; i++) if (d[i] > max) {
-      max = d[i];
-      arg = i;
-    }
-    let sum = 0;
-    for (let i = 0; i < vocab; i++) sum += Math.exp(d[i] - max);
-    this.steps.push({ id: arg, p: 1 / sum });
+    this.steps.push(stepConfidence(logits.data.subarray(0, vocab), this.keys));
     return logits;
   }
 }
 
-env.allowLocalModels = false;
-env.useBrowserCache = true;
+/** 語彙ごとの比較用キー（大文字小文字・記号の違いを無視）。モデルごとに1回だけ作る */
+let vocabKeys = null;
+function buildVocabKeys() {
+  try {
+    const t = asr.tokenizer;
+    const size = t.model?.vocab?.length || t._tokenizer?.model?.vocab?.length || t.get_vocab?.().size || 0;
+    if (!size) return null;
+    const keys = new Array(size);
+    for (let i = 0; i < size; i++) keys[i] = vocabKey(asr.tokenizer.decode([i], { skip_special_tokens: true }));
+    post({ type: 'log', level: 'info', message: `確信度の比較用語彙: ${size}語` });
+    return keys;
+  } catch (e) {
+    post({ type: 'log', level: 'warn', message: `確信度の比較用語彙を作れませんでした（${e?.message || e}）。表記ゆれの合算なしで続行します` });
+    return null;
+  }
+}
 
 let asr = null;
 let mt = null;
@@ -77,10 +83,12 @@ let mtInfo = null;
 
 async function ensureCpuAsr(reason) {
   if (asrInfo?.opts?.device === 'wasm') return;
+  vocabKeys = null; // 切り替え後に作り直す
   post({ type: 'log', level: 'warn', message: `音声認識をCPUに切り替えます（${reason}）` });
   const r = await loadWithFallback('automatic-speech-recognition', [asrInfo.id], [{ device: 'wasm', dtype: 'q8' }, { device: 'wasm', dtype: 'fp32' }], 'asr');
   asr = r.p;
   asrInfo = r;
+  vocabKeys = buildVocabKeys();
   device = 'wasm';
   post({ type: 'device', device: mtInfo?.opts?.device === 'webgpu' ? 'mixed' : 'wasm' });
 }
@@ -164,6 +172,7 @@ async function load({ asrKey, mtKey, forceWasm }) {
   mtInfo = r2;
 
   await warmUp();
+  vocabKeys = buildVocabKeys();
   const devs = new Set([asrInfo.opts.device, mtInfo.opts.device]);
   post({ type: 'ready', device: devs.size > 1 ? 'mixed' : [...devs][0], asr: { id: asrInfo.id, ...asrInfo.opts }, mt: { id: mtInfo.id, ...mtInfo.opts } });
 }
@@ -198,7 +207,7 @@ async function translate(text) {
 
 async function processAudio(id, audio) {
   const t0 = performance.now();
-  let rec = new ConfidenceRecorder();
+  let rec = new ConfidenceRecorder(vocabKeys);
   let r;
   try {
     r = await withTimeout(asr(audio, { return_timestamps: false, chunk_length_s: 30, logits_processor: [rec] }), CALL_LIMIT_MS, '音声認識');
@@ -206,7 +215,7 @@ async function processAudio(id, audio) {
     if (asrInfo?.opts?.device !== 'webgpu') throw e;
     // GPUが応答しない場合はCPUで同じ交信をやり直す
     await ensureCpuAsr(e.message);
-    rec = new ConfidenceRecorder();
+    rec = new ConfidenceRecorder(vocabKeys);
     r = await asr(audio, { return_timestamps: false, chunk_length_s: 30, logits_processor: [rec] });
   }
   const t1 = performance.now();

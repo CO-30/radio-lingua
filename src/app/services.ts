@@ -140,7 +140,7 @@ function createEngine() {
     pendingStart = null;
     setEngine({ status: 'error', error: d.message || '不明なエラー', detail: '' });
   });
-  e.addEventListener('log', (ev: any) => console.warn(ev.detail.message));
+  e.addEventListener('log', (ev: any) => (ev.detail.level === 'info' ? console.info : console.warn)(ev.detail.message));
   e.addEventListener('result', (ev: any) => onResult(ev.detail));
   return e;
 }

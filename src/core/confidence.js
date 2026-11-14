@@ -3,6 +3,40 @@
 
 export const UNCERTAIN_BELOW = 0.5;
 
+/** 語彙の比較用キー：大文字小文字・記号・空白の違いを無視する（"Southbound"="southbound"、"40."="40,"） */
+export function vocabKey(piece) {
+  return String(piece || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, '');
+}
+
+/**
+ * デコード1段分のロジットから、選ばれた語の確信度を求める。
+ * 表記だけが違う候補（大文字小文字・句読点）の確率は合算する。記号だけの語は判定しない（確信度1）。
+ * @param {ArrayLike<number>} logits
+ * @param {string[] | null} keys 語彙ごとの vocabKey（無ければ合算しない）
+ * @returns {{id: number, p: number}}
+ */
+export function stepConfidence(logits, keys) {
+  const n = logits.length;
+  let max = -Infinity;
+  let id = 0;
+  for (let i = 0; i < n; i++) if (logits[i] > max) {
+    max = logits[i];
+    id = i;
+  }
+  const key = keys ? keys[id] : null;
+  if (keys && !key) return { id, p: 1 };
+  let sum = 0;
+  let same = 0;
+  for (let i = 0; i < n; i++) {
+    const e = Math.exp(logits[i] - max);
+    sum += e;
+    if (i === id || (key && keys[i] === key)) same += e;
+  }
+  return { id, p: same / sum };
+}
+
 /**
  * トークン片（先頭が空白なら新しい語）を語にまとめる。語の確信度は含まれる片の最小値。
  * @param {{t:string, p:number}[]} tokens
