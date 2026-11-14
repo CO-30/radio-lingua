@@ -11,7 +11,7 @@ mkdirSync(OUT, { recursive: true });
 
 const server = await preview({ preview: { port: 4174, strictPort: true }, logLevel: 'silent' });
 const base = 'http://localhost:4174/?engine=mock';
-const browser = await chromium.launch({ executablePath: CHROME, args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox'] });
+const browser = await chromium.launch({ executablePath: CHROME, args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
 
 const failures = [];
 const check = (cond, msg) => {
@@ -56,13 +56,13 @@ async function run(name, contextOpts, mobile) {
   await page.waitForTimeout(200);
   check((await page.locator('.alert-state').textContent()).includes('1語'), 'ライブ画面にキーワード通知の状態が出る');
   await page.click('.live-controls .btn-primary');
-  await page.waitForFunction(() => window.__rl.getState().live.running, null, { timeout: 15000 });
+  await page.waitForFunction(() => window.__rl.getState().sessions.demo?.running, null, { timeout: 15000 });
   check((await page.locator('.live-status-text').textContent()) === '受信中', '受信中の表示');
   check(await page.locator('.nav-live').isVisible(), 'メニューに受信中の印が付く');
   await page.waitForSelector('.tx-list .tx:not(.tx-pending)', { timeout: 20000 });
   await page.waitForTimeout(600);
   await shot('2-live-first');
-  await page.waitForFunction(() => !window.__rl.getState().live.running, null, { timeout: 70000 });
+  await page.waitForFunction(() => !window.__rl.getState().sessions.demo?.running, null, { timeout: 70000 });
   await page.waitForTimeout(500);
   const n = await page.locator('.tx-list .tx:not(.tx-pending)').count();
   check(n === 6, `デモの6交信がすべて字幕になる（${n}件）`);
@@ -154,6 +154,36 @@ async function run(name, contextOpts, mobile) {
   check(await page.locator('.legal .notice-warn').isVisible(), '規約が弁護士確認前の案であると明示される');
   await page.locator('.tabs .chip', { hasText: 'ライセンス' }).click();
   check((await page.locator('.legal').textContent()).includes('Natural Earth'), 'ライセンス表示');
+
+  // 9. 複数局の同時受信（デモ局＋追加した局のマイク）
+  if (!mobile) {
+    const userId = await page.evaluate(() => window.__rl.getState().stations.find((x) => x.kind === 'user').id);
+    await page.goto(`${base}#/live/demo`);
+    await page.click('.live-controls .btn-primary');
+    await page.waitForFunction(() => window.__rl.getState().sessions.demo?.running, null, { timeout: 15000 });
+    await page.goto(`${base}#/live/${userId}`);
+    await page.click('.live-controls .btn-primary');
+    await page.waitForFunction((id) => window.__rl.getState().sessions[id]?.running, userId, { timeout: 15000 });
+    const both = await page.evaluate((id) => {
+      const s = window.__rl.getState().sessions;
+      return !!(s.demo?.running && s[id]?.running);
+    }, userId);
+    check(both, '2つの局を同時に受信できる（デモ＋マイク）');
+    check((await page.locator('.other-chip').textContent()).includes('デモ局'), 'ほかに受信中の局が表示され、切り替えられる');
+    await page.goto(`${base}#/map`);
+    await page.waitForSelector('.marker');
+    await page.locator('.map-zoom .icon-btn').last().click();
+    await page.waitForTimeout(800);
+    check((await page.locator('.marker.is-live').count()) === 2, '地図で受信中の2局が光る');
+    check((await page.locator('.stat-num.live').textContent()) === '2', '地図に受信中の局数が出る');
+    await shot('6-multi-map');
+    await page.goto(`${base}#/live/${userId}`);
+    await page.click('.btn-stop');
+    await page.goto(`${base}#/live/demo`);
+    await page.click('.btn-stop');
+    await page.waitForFunction(() => !Object.values(window.__rl.getState().sessions).some((x) => x.running), null, { timeout: 10000 });
+    check(true, '局ごとに停止できる');
+  }
 
   if (mobile) {
     const box = await page.locator('.rail').boundingBox();

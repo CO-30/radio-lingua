@@ -5,7 +5,7 @@ import { History } from '../core/history.js';
 import { Speaker } from '../core/tts.js';
 import { ASR_MODELS, MT_MODELS, defaultModelConfig, estimateDownloadMB, isMobileUA } from '../core/models.js';
 import { DEMO_STATION, makeUserStation } from '../core/stations.js';
-import { initState, getState, setState, type Settings, type Station, type Transmission } from './store';
+import { initState, getState, setState, EMPTY_SESSION, type Session, type Settings, type Station, type Transmission } from './store';
 import { countryCenter } from './geo';
 import { runBench } from '../core/bench.js';
 import { matchAlerts } from '../core/alerts.js';
@@ -55,14 +55,17 @@ function loadSettings(): Settings {
 const settings = loadSettings();
 export const history = new History(globalThis.localStorage, { persist: settings.saveHistory });
 export const speaker = new Speaker();
-export const capture = new Capture();
+/** 同時に受信できる局の数（AIは1つを共有するため、増やすと字幕が遅れやすい） */
+export const MAX_SESSIONS = 3;
+const captures = new Map<string, any>();
 let engine: any = null;
-const liveIds = new Set<number>();
+const liveIds = new Map<number, string>(); // 処理待ちの交信 → 局ID
 let loadedKey: string | null = null;
 
 initState({
   engine: { status: 'idle', device: null, progress: 0, detail: '', error: null },
-  live: { stationId: null, running: false, startedAt: 0, pending: 0, notice: null, fileName: null },
+  sessions: {},
+  focus: null,
   stations: [DEMO_STATION as Station, ...readJSON<Station[]>(STATIONS_KEY, [])],
   favorites: readJSON<string[]>(FAVORITES_KEY, []),
   history: history.items,
@@ -134,7 +137,11 @@ function createEngine() {
   e.addEventListener('error', (ev: any) => {
     const d = ev.detail;
     if (d.stage === 'process') {
-      if (liveIds.delete(d.id)) setState((st) => ({ live: { ...st.live, pending: Math.max(0, st.live.pending - 1), notice: `1件の交信を翻訳できませんでした（${d.message}）` } }));
+      const sid = liveIds.get(d.id);
+      if (sid) {
+        liveIds.delete(d.id);
+        patchSession(sid, (x) => ({ pending: Math.max(0, x.pending - 1), notice: `1件の交信を翻訳できませんでした（${d.message}）` }));
+      }
       return;
     }
     pendingStart = null;
@@ -186,70 +193,117 @@ function ensureEngine(): boolean {
   return false;
 }
 
-/* ---------- 受信 ---------- */
+/* ---------- 受信（局ごと・同時受信） ---------- */
 export function stationById(id: string | null | undefined) {
   return getState().stations.find((s) => s.id === id) || null;
+}
+
+function patchSession(id: string, patch: Partial<Session> | ((x: Session) => Partial<Session>)) {
+  setState((st) => {
+    const cur = st.sessions[id] || EMPTY_SESSION;
+    const p = typeof patch === 'function' ? patch(cur) : patch;
+    return { sessions: { ...st.sessions, [id]: { ...cur, ...p } } };
+  });
+}
+
+function runningCount() {
+  return Object.values(getState().sessions).filter((x) => x.running).length;
+}
+
+/** 局ごとの取り込み口。初回に作り、その局の交信として処理する */
+function captureFor(stationId: string) {
+  let c = captures.get(stationId);
+  if (c) return c;
+  c = new Capture();
+  c.addEventListener('stop', () => patchSession(stationId, { running: false }));
+  c.addEventListener('failed', (ev: any) => patchSession(stationId, { notice: ev.detail.message }));
+  c.addEventListener('segment', (ev: any) => {
+    if (getState().engine.status !== 'ready') return;
+    const id = engine.process(ev.detail.audio, { start: ev.detail.start });
+    liveIds.set(id, stationId);
+    const st = getState();
+    const backlog = liveIds.size;
+    const tip =
+      runningCount() > 1
+        ? '同時に受信する局を減らしてください'
+        : st.settings.asr === 'accurate'
+          ? '設定で音声認識を「標準」にしてください'
+          : st.settings.asr === 'standard'
+            ? '設定で音声認識を「軽量」にするか、他のアプリを閉じてください'
+            : '他のアプリやタブを閉じると改善することがあります';
+    patchSession(stationId, (x) => ({
+      pending: x.pending + 1,
+      notice: backlog >= 3 ? `AIの処理が音声に追いついていません。字幕が遅れる場合は、${tip}。` : x.notice,
+    }));
+  });
+  captures.set(stationId, c);
+  return c;
+}
+
+/** 波形表示用：局の取り込み口（受信していなければ null） */
+export function getCapture(stationId: string | null | undefined) {
+  return (stationId && captures.get(stationId)) || null;
 }
 
 export async function startLive(stationId: string, file?: File) {
   const station = stationById(stationId);
   if (!station) return;
   speaker.unlock();
-  setState((st) => ({ live: { ...st.live, stationId, notice: null } }));
+  setState({ focus: stationId });
+  patchSession(stationId, { notice: null });
+  if (!getState().sessions[stationId]?.running && runningCount() >= MAX_SESSIONS) {
+    patchSession(stationId, { notice: `同時に受信できるのは${MAX_SESSIONS}局までです。ほかの局を停止してから始めてください。` });
+    return;
+  }
   if (!ensureEngine()) {
     pendingStart = { stationId, file };
     return;
   }
+  const c = captureFor(stationId);
   try {
-    setState((st) => ({ live: { ...st.live, stationId, running: true, startedAt: Date.now(), pending: 0, notice: null, fileName: file?.name || null } }));
-    if (file) await capture.startMedia(URL.createObjectURL(file), { label: file.name });
-    else if (station.input === 'sample') await capture.startMedia(`${import.meta.env.BASE_URL}samples/demo-dispatch.mp3`, { label: 'デモ音声' });
-    else if (station.input === 'mic') await capture.startMic();
-    else if (station.input === 'tab') await capture.startTab();
-    else if (station.input === 'stream' && station.url) await capture.startStream(station.url);
+    patchSession(stationId, { running: true, startedAt: Date.now(), pending: 0, notice: null, fileName: file?.name || null });
+    if (file) await c.startMedia(URL.createObjectURL(file), { label: file.name });
+    else if (station.input === 'sample') await c.startMedia(`${import.meta.env.BASE_URL}samples/demo-dispatch.mp3`, { label: 'デモ音声' });
+    else if (station.input === 'mic') await c.startMic();
+    else if (station.input === 'tab') await c.startTab();
+    else if (station.input === 'stream' && station.url) await c.startStream(station.url);
   } catch (e: any) {
     const msg = e?.name === 'NotAllowedError' ? '音声の利用が許可されませんでした。ブラウザの設定で許可してください。' : e?.message || String(e);
-    setState((st) => ({ live: { ...st.live, running: false, notice: msg } }));
+    patchSession(stationId, { running: false, notice: msg });
   }
 }
 
-export async function stopLive() {
-  pendingStart = null;
-  await capture.stop();
+export async function stopLive(stationId: string) {
+  if (pendingStart?.stationId === stationId) pendingStart = null;
+  await captures.get(stationId)?.stop();
 }
 
-capture.addEventListener('stop', () => setState((st) => ({ live: { ...st.live, running: false } })));
-capture.addEventListener('failed', (ev: any) => setState((st) => ({ live: { ...st.live, notice: ev.detail.message } })));
-capture.addEventListener('segment', (ev: any) => {
-  if (getState().engine.status !== 'ready') return;
-  const id = engine.process(ev.detail.audio, { start: ev.detail.start });
-  liveIds.add(id);
-  setState((st) => {
-    const pending = st.live.pending + 1;
-    const tip = st.settings.asr === 'accurate' ? '設定で音声認識を「標準」にしてください' : st.settings.asr === 'standard' ? '設定で音声認識を「軽量」にするか、他のアプリを閉じてください' : '他のアプリやタブを閉じると改善することがあります';
-    const notice = pending >= 3 ? `AIの処理が音声に追いついていません。字幕が遅れる場合は、${tip}。` : st.live.notice;
-    return { live: { ...st.live, pending, notice } };
-  });
-});
+export async function stopAll() {
+  pendingStart = null;
+  await Promise.all([...captures.values()].map((c) => c.stop()));
+}
 
 function onResult({ id, caption, ms }: { id: number; caption: any; ms: any }) {
-  if (!liveIds.delete(id)) return;
-  setState((st) => ({ live: { ...st.live, pending: Math.max(0, st.live.pending - 1) } }));
+  const stationId = liveIds.get(id);
+  if (!stationId) return;
+  liveIds.delete(id);
+  const session = getState().sessions[stationId] || EMPTY_SESSION;
+  patchSession(stationId, (x) => ({ pending: Math.max(0, x.pending - 1) }));
   if (!caption) return;
   const st = getState();
-  const station = stationById(st.live.stationId);
+  const station = stationById(stationId);
   const alerts = st.settings.alertsOn ? matchAlerts(caption, st.settings.alertKeywords) : [];
   const item: Transmission = history.add({
     ...caption,
-    stationId: station?.id,
+    stationId,
     stationName: station?.name,
-    source: st.live.fileName || station?.name,
+    source: session.fileName || station?.name,
     ms,
     ...(alerts.length ? { alerts } : {}),
   });
   setState((s) => ({ history: [...history.items], historyVersion: s.historyVersion + 1 }));
   if (alerts.length) notifyAlert(item, alerts);
-  if (st.settings.autoSpeak) speaker.speak(item.ja);
+  if (st.settings.autoSpeak) speaker.speak(runningCount() > 1 ? `${station?.name || ''}。${item.ja}` : item.ja);
 }
 
 /* ---------- キーワード通知 ---------- */
@@ -336,7 +390,11 @@ export function download(name: string, text: string, type: string) {
 (window as any).__rl = {
   getState,
   history,
-  capture,
+  get capture() {
+    return captures.get(getState().focus || 'demo') || null;
+  },
+  captures,
+  startLive,
   get engine() {
     return engine;
   },

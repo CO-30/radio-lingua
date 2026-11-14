@@ -3,14 +3,15 @@ import { useMemo, useState } from 'react';
 import { WorldMap } from '../components/WorldMap';
 import { StationCard, fmtTime } from '../components/Rows';
 import { KindIcon, IconClose, IconPlus } from '../components/Icons';
-import { useApp, setState } from '../app/store';
+import { useApp, setState, runningIds } from '../app/store';
 import { countryName, PROVIDER_COUNTRIES } from '../app/geo';
 import { navigate } from '../app/router';
 import { LIVE_PROVIDERS } from '../data/sources.js';
 
 export function MapView() {
   const stations = useApp((s) => s.stations);
-  const live = useApp((s) => s.live);
+  const liveKey = useApp((s) => runningIds(s).join(','));
+  const liveSet = useMemo(() => new Set(liveKey ? liveKey.split(',') : []), [liveKey]);
   const history = useApp((s) => s.history);
   const [country, setCountry] = useState<string | null>(null);
   const [selStation, setSelStation] = useState<string | null>(null);
@@ -36,6 +37,12 @@ export function MapView() {
             <span className="stat-num ok">{stations.length}</span>
             <span className="stat-label">受信可能な局</span>
           </div>
+          {liveSet.size > 0 && (
+            <div className="stat">
+              <span className="stat-num live">{liveSet.size}</span>
+              <span className="stat-label">受信中</span>
+            </div>
+          )}
           <div className="stat">
             <span className="stat-num">{countries}</span>
             <span className="stat-label">国・地域</span>
@@ -49,7 +56,7 @@ export function MapView() {
           stations={stations}
           selectedCountry={country}
           selectedStation={selStation}
-          liveStation={live.running ? live.stationId : null}
+          liveStations={liveSet}
           pendingCountries={pending}
           onSelectCountry={selectCountry}
           onSelectStation={(id) => {

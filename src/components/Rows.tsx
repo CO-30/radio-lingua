@@ -4,7 +4,7 @@ import { markText, uncertainWords } from '../core/confidence.js';
 import { findTerms } from '../core/glossary.js';
 import { INPUT_LABEL } from '../core/stations.js';
 import { TYPE_LABEL } from '../data/sources.js';
-import { useApp, type Station, type Transmission } from '../app/store';
+import { useApp, useSession, type Station, type Transmission } from '../app/store';
 import { toggleSpeak, toggleStar, toggleFavorite } from '../app/services';
 import { countryName } from '../app/geo';
 import { navigate } from '../app/router';
@@ -100,7 +100,7 @@ export function TransmissionRow({ item, showStation = false }: { item: Transmiss
 
 export function StationCard({ station, compact = false }: { station: Station; compact?: boolean }) {
   const fav = useApp((s) => s.favorites.includes(station.id));
-  const live = useApp((s) => s.live.running && s.live.stationId === station.id);
+  const live = useSession(station.id).running;
   return (
     <article className={`station${live ? ' is-live' : ''}`}>
       <div className="station-types" aria-label={station.types.map((t) => TYPE_LABEL[t]).join('・')}>

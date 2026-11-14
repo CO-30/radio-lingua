@@ -560,6 +560,10 @@ h3 {
 .stat-num.ok {
   color: var(--green);
 }
+.stat-num.live {
+  color: var(--green);
+  text-shadow: 0 0 12px rgba(39, 201, 154, 0.5);
+}
 .stat-num.warn {
   color: var(--amber);
 }
@@ -1398,6 +1402,38 @@ h3 {
 .kw-suggest .chip {
   font-size: 12px;
   padding: 3px 10px;
+}
+
+.others {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.others-label {
+  color: var(--dim);
+}
+.other-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(39, 201, 154, 0.4);
+  background: rgba(39, 201, 154, 0.08);
+  color: var(--text);
+  cursor: pointer;
+}
+.other-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: blink 1.2s steps(2) infinite;
+}
+.others-note {
+  color: var(--amber);
 }
 
 /* ---------- ダイアログ ---------- */

@@ -1,8 +1,8 @@
 // 受信中の音声波形と信号レベル。取り込みの解析ノードから直接描く。
 import { useEffect, useRef } from 'react';
-import { capture } from '../app/services';
+import { getCapture } from '../app/services';
 
-export function Waveform({ active }: { active: boolean }) {
+export function Waveform({ active, stationId }: { active: boolean; stationId: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const levelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -21,7 +21,7 @@ export function Waveform({ active }: { active: boolean }) {
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
-      const has = active && capture.readWaveform(buf);
+      const has = active && !!getCapture(stationId)?.readWaveform(buf);
       // 中央線
       ctx.strokeStyle = 'rgba(32,185,232,0.18)';
       ctx.lineWidth = 1;
@@ -51,7 +51,7 @@ export function Waveform({ active }: { active: boolean }) {
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [active]);
+  }, [active, stationId]);
   return (
     <div className="wave">
       <canvas ref={ref} className="wave-canvas" aria-hidden="true" />

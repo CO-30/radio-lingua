@@ -11,7 +11,7 @@ interface Props {
   stations: Station[];
   selectedCountry: string | null;
   selectedStation: string | null;
-  liveStation: string | null;
+  liveStations: Set<string>;
   pendingCountries: Set<string>;
   onSelectCountry: (a2: string | null) => void;
   onSelectStation: (id: string) => void;
@@ -61,7 +61,7 @@ function fitView(v: View, aspect: number): View {
   return { x: v.x - (w - v.w) / 2, y: v.y, w, h: v.h };
 }
 
-export function WorldMap({ stations, selectedCountry, selectedStation, liveStation, pendingCountries, onSelectCountry, onSelectStation }: Props) {
+export function WorldMap({ stations, selectedCountry, selectedStation, liveStations, pendingCountries, onSelectCountry, onSelectStation }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ w: 800, h: 400 });
@@ -269,7 +269,7 @@ export function WorldMap({ stations, selectedCountry, selectedStation, liveStati
       {stations.map((s) => {
         const [x, y] = toScreen(s.lon, s.lat);
         if (x < -20 || y < -20 || x > size.w + 20 || y > size.h + 20) return null;
-        const live = s.id === liveStation;
+        const live = liveStations.has(s.id);
         const sel = s.id === selectedStation;
         return (
           <button

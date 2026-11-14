@@ -1,6 +1,6 @@
 // 画面の骨組み：PCは左の縦メニュー、スマホは下部メニュー。
 import { useEffect, useState } from 'react';
-import { useApp, setState } from './app/store';
+import { useApp, setState, runningIds } from './app/store';
 import { useRoute, navigate } from './app/router';
 import { useMock } from './app/services';
 import { MapView } from './views/MapView';
@@ -62,8 +62,8 @@ function EngineBadge() {
 
 export function App() {
   const route = useRoute();
-  const live = useApp((s) => s.live);
-  const lastStation = live.stationId || 'demo';
+  const anyLive = useApp((s) => runningIds(s).length > 0);
+  const lastStation = useApp((s) => s.focus) || 'demo';
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [route.name]);
@@ -93,7 +93,7 @@ export function App() {
                 <a href={`#${href}`} className={`nav-item${on ? ' is-on' : ''}`} aria-current={on ? 'page' : undefined}>
                   <Icon size={22} />
                   <span>{label}</span>
-                  {name === 'live' && live.running && <span className="nav-live" aria-label="受信中" />}
+                  {name === 'live' && anyLive && <span className="nav-live" aria-label="受信中" />}
                 </a>
               </li>
             );

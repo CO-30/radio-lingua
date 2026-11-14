@@ -1,7 +1,7 @@
 // ライブ翻訳画面：無線を聞きながら、原文と日本語訳を並べて確認する。
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useApp, setState } from '../app/store';
-import { startLive, stopLive, stationById, updateSettings } from '../app/services';
+import { useApp, setState, useSession, runningIds } from '../app/store';
+import { startLive, stopLive, stationById, updateSettings, MAX_SESSIONS } from '../app/services';
 import { countryName } from '../app/geo';
 import { navigate } from '../app/router';
 import { INPUT_LABEL } from '../core/stations.js';
@@ -25,7 +25,9 @@ function useElapsed(running: boolean, startedAt: number) {
 
 export function LiveView({ stationId }: { stationId: string }) {
   const station = useApp((s) => s.stations.find((x) => x.id === stationId) || s.stations[0]);
-  const live = useApp((s) => s.live);
+  const session = useSession(stationId);
+  const others = useApp((s) => runningIds(s).filter((id) => id !== stationId).join(','));
+  const focus = useApp((s) => s.focus);
   const engine = useApp((s) => s.engine);
   const allHistory = useApp((s) => s.history);
   const autoSpeak = useApp((s) => s.settings.autoSpeak);
@@ -35,10 +37,11 @@ export function LiveView({ stationId }: { stationId: string }) {
   const listRef = useRef<HTMLOListElement>(null);
   const [stick, setStick] = useState(true);
 
-  const isThis = live.stationId === station.id;
-  const running = live.running && isThis;
-  const busyElsewhere = live.running && !isThis;
-  const elapsed = useElapsed(running, live.startedAt);
+  const isThis = focus === station.id; // AIの準備を待っているのがこの局か
+  const running = session.running;
+  const otherIds = others ? others.split(',') : [];
+  const full = !running && otherIds.length >= MAX_SESSIONS;
+  const elapsed = useElapsed(running, session.startedAt);
   const items = useMemo(() => allHistory.filter((h) => h.stationId === station.id).slice(-150), [allHistory, station.id]);
 
   // 新しい交信が来たら一番下へ（利用者が上を読んでいるときは動かさない）
@@ -91,20 +94,20 @@ export function LiveView({ stationId }: { stationId: string }) {
       </header>
 
       <div className="live-console">
-        <Waveform active={running} />
+        <Waveform active={running} stationId={station.id} />
         <div className="live-controls">
           {running ? (
-            <button className="btn btn-stop" onClick={() => stopLive()}>
+            <button className="btn btn-stop" onClick={() => stopLive(station.id)}>
               <IconStop size={16} />
               停止
             </button>
           ) : (
-            <button className="btn btn-primary btn-big" disabled={loading || busyElsewhere || tabUnsupported} onClick={() => startLive(station.id)}>
+            <button className="btn btn-primary btn-big" disabled={loading || full || tabUnsupported} onClick={() => startLive(station.id)}>
               <IconPlay size={16} />
               {loading && isThis ? 'AI準備中…' : '受信して翻訳'}
             </button>
           )}
-          <button className="btn btn-ghost" disabled={running || loading || busyElsewhere} onClick={() => fileRef.current?.click()}>
+          <button className="btn btn-ghost" disabled={running || loading || full} onClick={() => fileRef.current?.click()}>
             <IconFile size={16} />
             録音ファイルを翻訳
           </button>
@@ -140,16 +143,20 @@ export function LiveView({ stationId }: { stationId: string }) {
         {engine.status === 'error' && (
           <p className="notice notice-error">AIモデルを読み込めませんでした（{engine.error}）。通信状況を確認して、もう一度お試しください。</p>
         )}
-        {busyElsewhere && (
-          <p className="notice">
-            「{stationById(live.stationId)?.name}」を受信中です。
-            <button className="text-btn" onClick={() => navigate(`/live/${live.stationId}`)}>
-              受信中の局へ
-            </button>
-          </p>
+        {otherIds.length > 0 && (
+          <div className="others" aria-label="同時に受信中の局">
+            <span className="others-label">同時に受信中</span>
+            {otherIds.map((id) => (
+              <button key={id} className="other-chip" onClick={() => navigate(`/live/${id}`)}>
+                <span className="other-dot" aria-hidden="true" />
+                {stationById(id)?.name}
+              </button>
+            ))}
+            {full && <span className="others-note">同時に受信できるのは{MAX_SESSIONS}局までです</span>}
+          </div>
         )}
         {tabUnsupported && <p className="notice">タブ音声の取り込みはパソコンの Chrome・Edge のみ対応です。</p>}
-        {isThis && live.notice && <p className="notice notice-warn">{live.notice}</p>}
+        {session.notice && <p className="notice notice-warn">{session.notice}</p>}
         {station.kind === 'demo' && !running && <p className="hint">架空の通報を合成音声で再現したデモです（約44秒）。実在の交信ではありません。</p>}
         {station.input === 'mic' && !running && <p className="hint">受信機のスピーカーの近くに端末を置いてください。読み上げを使う場合はイヤホンをおすすめします。</p>}
       </div>
@@ -165,16 +172,16 @@ export function LiveView({ stationId }: { stationId: string }) {
           {items.map((it) => (
             <TransmissionRow key={it.id} item={it} />
           ))}
-          {isThis && live.pending > 0 && (
+          {session.pending > 0 && (
             <li className="tx tx-pending" aria-live="polite">
               <span className="pending-dots" aria-hidden="true" />
-              聞き取り中… {live.pending > 1 ? `（${live.pending}件）` : ''}
+              聞き取り中… {session.pending > 1 ? `（${session.pending}件）` : ''}
             </li>
           )}
         </ol>
       ) : (
         <div className="empty-live">
-          {isThis && live.pending > 0 ? <p>聞き取り中…</p> : <p>「受信して翻訳」を押すと、交信がここに原文と日本語訳で並びます。</p>}
+          {session.pending > 0 ? <p>聞き取り中…</p> : <p>「受信して翻訳」を押すと、交信がここに原文と日本語訳で並びます。</p>}
         </div>
       )}
       <p className="disclaimer">AIによる翻訳には誤りが含まれます。黄色の下線は聞き取りが不確かな語です。緊急時の判断や公式情報の代わりには使わないでください。</p>
