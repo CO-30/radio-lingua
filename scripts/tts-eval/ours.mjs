@@ -34,6 +34,16 @@ for (const text of lines) {
 }
 fs.mkdirSync(outDir, { recursive: true });
 ref.writeWavFile(path.join(outDir, 'app-F2.wav'), all, cfgs.ae.sample_rate);
+// 手順数を減らすと速くなる。どこまで減らせるか聞き比べるための版
+for (const steps of [4, 5]) {
+  const pcm = [];
+  for (const text of lines) {
+    const r = await synthesize(ort, sessions, cfgs, indexer, style, text, { steps });
+    for (const x of r.pcm) pcm.push(x);
+    for (let i = 0; i < 0.25 * r.sampleRate; i++) pcm.push(0);
+  }
+  ref.writeWavFile(path.join(outDir, `app-F2-steps${steps}.wav`), pcm, cfgs.ae.sample_rate);
+}
 if (!ok) {
   console.error('公式サンプルと結果が一致しません');
   process.exit(1);
