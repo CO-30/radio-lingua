@@ -4,9 +4,27 @@ const KEY = 'radiolingua.history.v1';
 const MAX = 1000;
 
 export class History {
-  constructor(storage = globalThis.localStorage) {
+  constructor(storage = globalThis.localStorage, { persist = true } = {}) {
     this.storage = storage;
+    this.persist = persist;
     this.items = this._read();
+  }
+  /** 保存する/しないの切り替え。しない場合は端末から消し、この画面を開いている間だけ保持する */
+  setPersist(on) {
+    this.persist = on;
+    if (on) this._write();
+    else {
+      try {
+        this.storage?.removeItem(KEY);
+      } catch {}
+    }
+  }
+  update(id, patch) {
+    const it = this.items.find((x) => x.id === id);
+    if (!it) return null;
+    Object.assign(it, patch);
+    this._write();
+    return it;
   }
   _read() {
     try {
@@ -18,6 +36,7 @@ export class History {
     }
   }
   _write() {
+    if (!this.persist) return;
     try {
       this.storage?.setItem(KEY, JSON.stringify(this.items));
     } catch {

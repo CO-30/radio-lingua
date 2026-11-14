@@ -21,6 +21,19 @@ export class Speaker {
     const ja = voices.filter((v) => /^ja(-|_|$)/i.test(v.lang));
     this.voice = ja.find((v) => /Kyoko|Otoya|Nanami|Keita|Google/i.test(v.name)) || ja[0] || null;
   }
+  /** 1件だけ読み上げる（自動読み上げの設定に関係なく）。終わったら onend */
+  speakNow(text, onend) {
+    if (!this.supported || !text) return false;
+    this.synth.cancel();
+    this.pending = 0;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP';
+    u.rate = this.rate;
+    if (this.voice) u.voice = this.voice;
+    u.onend = u.onerror = () => onend?.();
+    this.synth.speak(u);
+    return true;
+  }
   speak(text) {
     if (!this.enabled || !this.supported || !text) return;
     if (this.pending >= this.maxQueue) {

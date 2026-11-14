@@ -35,4 +35,5 @@ export const LIVE_PROVIDERS = [
   },
 ];
 
+/** @type {Record<string, string>} */
 export const TYPE_LABEL = { police: '警察', fire: '消防', ems: '救急', other: 'その他' };

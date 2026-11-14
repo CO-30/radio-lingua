@@ -15,8 +15,10 @@
 | 通信先 | 自サイト（GitHub Pages）と Hugging Face（モデル取得）のみ | 実ブラウザで通信先を確認。CSPの `connect-src` でも制限 |
 | 利用者データの送信 | なし | 音声認識・翻訳はブラウザ内（Web Worker）で実行。履歴は localStorage のみ |
 | 端末の権限 | マイク・画面共有は、利用者が該当ボタンを押したときだけ要求 | コード確認 |
+| 利用者が追加した配信URL | https のみ受け付け。権利確認のチェックを必須化 | 単体テスト・画面テスト |
 | AIモデルの改ざん・すり替え | 版（コミットID）を固定 | `src/core/models.js` の `REVISIONS` |
 | 実行環境（ONNX Runtime）の配信 | 自サイトから配信（外部CDNに依存しない） | `scripts/copy-ort.mjs` |
+| 外部の地図・書体サービス | 使用しない（地図データ・書体とも自前配信） | ビルド設定（data: 埋め込みも禁止） |
 | リファラー送信 | 送らない | `<meta name="referrer" content="no-referrer">` |
 | Cookie・解析ツール・広告 | 使用していない | コード確認 |
 | 暗号化通信の復号・不正アクセス | 該当機能なし | コード確認 |
@@ -24,7 +26,7 @@
 ## コンテンツセキュリティポリシー（本番ビルドに自動付与）
 ```
 default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self';
-img-src 'self' data:; media-src 'self' blob:;
+img-src 'self' data:; font-src 'self'; media-src 'self' blob:;
 connect-src 'self' blob: data: https://huggingface.co https://*.huggingface.co https://*.hf.co;
 object-src 'none'; base-uri 'self'; form-action 'self'
 ```

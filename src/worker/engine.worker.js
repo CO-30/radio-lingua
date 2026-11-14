@@ -1,9 +1,32 @@
 // AIエンジン本体（Web Worker）。画面を固めないよう別スレッドで動かす。
 // 音声認識: Whisper / 翻訳: LFM2-ENJP-MT または FuguMT（transformers.js + ONNX Runtime Web）
 
-import { pipeline, env } from '@huggingface/transformers';
+import { pipeline, env, LogitsProcessor } from '@huggingface/transformers';
 import { ASR_MODELS, MT_MODELS, revisionOf } from '../core/models.js';
 import { buildCaption } from '../core/radio.js';
+import { tokensToWords } from '../core/confidence.js';
+
+/** デコードの各段で、選ばれた語の確率を記録する（ロジットは変更しない） */
+class ConfidenceRecorder extends LogitsProcessor {
+  constructor() {
+    super();
+    this.steps = [];
+  }
+  _call(inputIds, logits) {
+    const vocab = logits.dims.at(-1);
+    const d = logits.data;
+    let max = -Infinity;
+    let arg = 0;
+    for (let i = 0; i < vocab; i++) if (d[i] > max) {
+      max = d[i];
+      arg = i;
+    }
+    let sum = 0;
+    for (let i = 0; i < vocab; i++) sum += Math.exp(d[i] - max);
+    this.steps.push({ id: arg, p: 1 / sum });
+    return logits;
+  }
+}
 
 env.allowLocalModels = false;
 env.useBrowserCache = true;
@@ -108,10 +131,16 @@ async function translate(text) {
 
 async function processAudio(id, audio) {
   const t0 = performance.now();
-  const r = await asr(audio, { return_timestamps: false, chunk_length_s: 30 });
+  const rec = new ConfidenceRecorder();
+  const r = await asr(audio, { return_timestamps: false, chunk_length_s: 30, logits_processor: [rec] });
   const t1 = performance.now();
+  let words = [];
+  try {
+    words = tokensToWords(rec.steps.map((st) => ({ t: asr.tokenizer.decode([st.id], { skip_special_tokens: true }), p: st.p })));
+  } catch {}
   const cap = await buildCaption(r.text, translate);
   const t2 = performance.now();
+  if (cap) cap.words = words;
   post({ type: 'result', id, caption: cap, rawEn: r.text, ms: { asr: Math.round(t1 - t0), mt: Math.round(t2 - t1) } });
 }
 

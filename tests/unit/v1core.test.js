@@ -1,0 +1,89 @@
+import { describe, it, expect } from 'vitest';
+import { findTerms } from '../../src/core/glossary.js';
+import { tokensToWords, uncertainWords, markText } from '../../src/core/confidence.js';
+import { DEMO_STATION, makeUserStation, filterStations, countByCountry } from '../../src/core/stations.js';
+import worldmap from '../../src/data/worldmap.json';
+
+describe('用語の補足', () => {
+  it('出現順に重複なく返す', () => {
+    const t = findTerms('Unit 23, traffic stop on Highway 9 southbound near mile marker 40. Two occupants.');
+    expect(t.map((x) => x.key)).toEqual(['unit', 'traffic-stop', 'highway', 'bound', 'mile-marker', 'occupants']);
+    expect(t[0].ja).toBe('ユニット');
+  });
+  it('用語がなければ空', () => expect(findTerms('Hello there')).toEqual([]));
+});
+
+describe('確信度', () => {
+  const tokens = [
+    { t: ' Silver', p: 0.92 },
+    { t: ' Civ', p: 0.31 },
+    { t: 'an', p: 0.8 },
+    { t: ',', p: 0.99 },
+    { t: ' two', p: 0.97 },
+    { t: ' occupants', p: 0.88 },
+  ];
+  it('トークンを語にまとめ、最小確率を語の確信度にする', () => {
+    expect(tokensToWords(tokens)).toEqual([
+      { w: 'Silver', p: 0.92 },
+      { w: 'Civan,', p: 0.31 },
+      { w: 'two', p: 0.97 },
+      { w: 'occupants', p: 0.88 },
+    ]);
+  });
+  it('不確かな語だけを記号なしで返す', () => expect(uncertainWords(tokensToWords(tokens))).toEqual(['Civan']));
+  it('表示用に原文を分割する', () => {
+    const parts = markText('Silver Civan, two occupants', tokensToWords(tokens));
+    expect(parts.filter((p) => p.uncertain).map((p) => p.text)).toEqual(['Civan,']);
+    expect(parts.map((p) => p.text).join('')).toBe('Silver Civan, two occupants');
+  });
+  it('確信度がなければ全体を1断片で返す', () => expect(markText('abc', [])).toEqual([{ text: 'abc', uncertain: false }]));
+});
+
+describe('無線局', () => {
+  it('利用者の局を作る（検証つき）', () => {
+    const s = makeUserStation({ name: ' 自宅の受信機 ', types: ['fire'], country: 'US', input: 'mic' }, [-98, 39]);
+    expect(s.name).toBe('自宅の受信機');
+    expect(s.kind).toBe('user');
+    expect(s.lon).toBe(-98);
+    expect(() => makeUserStation({ name: '', types: ['fire'], country: 'US', input: 'mic' })).toThrow('名前');
+    expect(() => makeUserStation({ name: 'a', types: [], country: 'US', input: 'mic' })).toThrow('警察');
+    expect(() => makeUserStation({ name: 'a', types: ['ems'], country: 'US', input: 'stream', url: 'http://x' })).toThrow('https');
+  });
+  it('同じ国の2局目は位置をずらす', () => {
+    const a = makeUserStation({ name: 'a', types: ['fire'], country: 'US', input: 'mic' }, [-98, 39], 0);
+    const b = makeUserStation({ name: 'b', types: ['fire'], country: 'US', input: 'mic' }, [-98, 39], 1);
+    expect(Math.hypot(a.lon - b.lon, a.lat - b.lat)).toBeGreaterThan(1);
+  });
+  it('絞り込み', () => {
+    const u = makeUserStation({ name: 'Tokyo scanner', types: ['police'], country: 'JP', input: 'mic' }, [139, 35]);
+    const list = [DEMO_STATION, u];
+    expect(filterStations(list, { type: 'police' }).length).toBe(2);
+    expect(filterStations(list, { type: 'police', country: 'JP' })).toEqual([u]);
+    expect(filterStations(list, { q: 'デモ' })).toEqual([DEMO_STATION]);
+    expect(filterStations(list, { q: '日本' }, (c) => (c === 'JP' ? '日本' : c))).toEqual([u]);
+    expect(filterStations(list, { favoritesOnly: true, favorites: ['demo'] })).toEqual([DEMO_STATION]);
+    expect(countByCountry(list).get('US')).toBe(1);
+  });
+});
+
+describe('世界地図データ', () => {
+  it('主要国が含まれ、各国に点がある', () => {
+    const codes = worldmap.countries.map((c) => c.a2);
+    for (const c of ['US', 'JP', 'GB', 'AU', 'CA', 'BR', 'ZA']) expect(codes).toContain(c);
+    const withDots = new Set();
+    for (let i = 2; i < worldmap.dots.length; i += 3) withDots.add(worldmap.dots[i]);
+    expect(withDots.size).toBe(worldmap.countries.length);
+  });
+  it('日本の点は日本付近にある', () => {
+    const jp = worldmap.countries.findIndex((c) => c.a2 === 'JP');
+    for (let i = 0; i < worldmap.dots.length; i += 3) {
+      if (worldmap.dots[i + 2] !== jp) continue;
+      const lon = worldmap.lon0 + (worldmap.dots[i] + 0.5) * worldmap.step;
+      const lat = worldmap.latMax - worldmap.dots[i + 1] * worldmap.step;
+      expect(lon).toBeGreaterThan(122);
+      expect(lon).toBeLessThan(150);
+      expect(lat).toBeGreaterThan(23);
+      expect(lat).toBeLessThan(47);
+    }
+  });
+});

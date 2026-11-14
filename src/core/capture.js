@@ -42,6 +42,11 @@ export class Capture extends EventTarget {
   _startPipeline(sourceNode, { monitor }) {
     const ctx = this.ctx;
     this.resampler = new StreamResampler(ctx.sampleRate, 16000);
+    this.analyser = ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.analyser.smoothingTimeConstant = 0.6;
+    sourceNode.connect(this.analyser);
+    this.maxLevel = 0;
     this.t0 = ctx.currentTime;
     this.segmenter = new StreamingSegmenter({
       onSegment: (seg) => this._emit('segment', seg),
@@ -52,6 +57,7 @@ export class Capture extends EventTarget {
     proc.onaudioprocess = (e) => {
       if (!this.running) return;
       const input = e.inputBuffer.getChannelData(0);
+      for (let i = 0; i < input.length; i += 64) if (Math.abs(input[i]) > this.maxLevel) this.maxLevel = Math.abs(input[i]);
       this.segmenter.push(this.resampler.push(input));
       e.outputBuffer.getChannelData(0).fill(0);
     };
@@ -62,6 +68,28 @@ export class Capture extends EventTarget {
     this.srcNode = sourceNode;
     this.running = true;
     this._emit('start', {});
+  }
+
+  /** 波形表示用（時間領域のデータ）。取り込み中でなければ false */
+  readWaveform(buf) {
+    if (!this.analyser || !this.running) return false;
+    this.analyser.getFloatTimeDomainData(buf);
+    return true;
+  }
+
+  /**
+   * 利用者の配信URL（Icecast等）を再生しながら翻訳する。
+   * 配信側が外部からの取り込み（CORS）を許可していないと、ブラウザは無音しか渡さないので検出して知らせる。
+   */
+  async startStream(url) {
+    await this.startMedia(url, { label: '配信' });
+    clearTimeout(this.silenceTimer);
+    this.silenceTimer = setTimeout(() => {
+      if (this.running && this.mediaEl && !this.mediaEl.paused && this.maxLevel < 0.0005) {
+        this._emit('failed', { message: 'この配信は音声の取り込みを許可していない（CORS未対応）ため翻訳できません。配信元の設定をご確認ください。' });
+        this.stop();
+      }
+    }, 8000);
   }
 
   /** サンプルやファイルを再生しながら翻訳する */
@@ -107,6 +135,7 @@ export class Capture extends EventTarget {
   }
 
   async stop() {
+    clearTimeout(this.silenceTimer);
     if (!this.running && !this.mediaEl && !this.stream) return;
     this.running = false;
     try {
@@ -115,6 +144,7 @@ export class Capture extends EventTarget {
     try {
       this.node?.disconnect();
       this.srcNode?.disconnect();
+      this.analyser?.disconnect();
     } catch {}
     if (this.mediaEl) {
       this.mediaEl.pause();

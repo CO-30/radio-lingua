@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 // コンテンツセキュリティポリシー（本番ビルドのみ。開発サーバーはインラインスクリプトを使うため除外）
 // 画面側は自サイトの資源だけを読み込む。AIモデルの取得は Web Worker 側で行う。
@@ -8,6 +9,7 @@ const CSP = [
   "worker-src 'self' blob:",
   "style-src 'self'",
   "img-src 'self' data:",
+  "font-src 'self'",
   "media-src 'self' blob:",
   "connect-src 'self' blob: data: https://huggingface.co https://*.huggingface.co https://*.hf.co",
   "object-src 'none'",
@@ -26,8 +28,9 @@ const cspPlugin = {
 // GitHub Pages（https://co-30.github.io/radio-lingua/）でも動くよう相対パスで出力
 export default defineConfig({
   base: './',
-  plugins: [cspPlugin],
+  plugins: [react(), cspPlugin],
   worker: { format: 'es' },
-  build: { target: 'es2022', chunkSizeWarningLimit: 2000 },
+  // 小さなフォント等を data: に埋め込まない（CSP の font-src 'self' を保つため）
+  build: { target: 'es2022', chunkSizeWarningLimit: 2000, assetsInlineLimit: 0 },
   server: { host: true },
 });
