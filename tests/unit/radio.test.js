@@ -56,6 +56,12 @@ describe('normalizeRadioText', () => {
     expect(normalizeRadioText('Frank is on scene').text).toBe('Frank is on scene');
   });
 
+  it('1桁の数+複数名詞は英単語にする（翻訳の崩れ防止）', () => {
+    expect(normalizeRadioText('Silver sedan 2 occupants.').text).toBe('Silver sedan two occupants.');
+    expect(normalizeRadioText('Highway 9 southbound, mile marker 40, 6 minutes').text).toBe('Highway 9 southbound, mile marker 40, six minutes');
+    expect(normalizeRadioText('Engine 5 crews on scene').text).toBe('Fire Engine 5 crews on scene');
+  });
+
   it('略語 ETA を展開する', () => {
     expect(normalizeRadioText('ETA six minutes').text).toBe('estimated arrival time six minutes');
     expect(normalizeRadioText('E T A 6').text).toBe('estimated arrival time 6');
@@ -117,6 +123,7 @@ describe('buildCaption', () => {
     expect((await buildCaption('Engine 12 copies, en route.', mt)).ja).toBe('消防車12、了解、現場へ向かう。');
     expect((await buildCaption('10-4.', mt)).ja).toBe('了解。');
     expect((await buildCaption('Engine 12 copies en route.', mt)).ja).toBe('消防車12、了解、現場へ向かう。');
+    expect((await buildCaption('Engine 12 copies and route.', mt)).ja).toBe('消防車12、了解、現場へ向かう。');
     expect((await buildCaption('Medic 7 responding.', mt)).ja).toBe('救急車7、出動する。');
     expect((await buildCaption('Medic 7, priority 1 call.', mt)).ja).toBe('救急車7、最優先の出動要請。');
     expect((await buildCaption('10-4-23 is on scene.', mt)).ja).toBe('了解。23、現着。');
@@ -126,7 +133,7 @@ describe('buildCaption', () => {
   it('定型句と自由文が混ざった文は分けて訳す', async () => {
     const seen = [];
     const cap = await buildCaption('Medic 7 responding, ETA 6 minutes.', async (en) => (seen.push(en), '到着予定6分'));
-    expect(seen).toEqual(['estimated arrival time 6 minutes.']);
+    expect(seen).toEqual(['estimated arrival time six minutes.']);
     expect(cap.ja).toBe('救急車7、出動する、到着予定6分。');
   });
   it('長い文は読点で小分けにする', async () => {

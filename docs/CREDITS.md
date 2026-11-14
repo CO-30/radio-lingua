@@ -17,4 +17,5 @@ FuguMT の翻訳には © staka, CC BY-SA 4.0（https://huggingface.co/staka/fug
 | Vite | MIT |
 
 ## デモ音声
-`public/samples/demo-dispatch.mp3` は本プロジェクトで作成した架空の交信の合成音声です（音声合成: meSpeak.js / eSpeak、生成スクリプトは開発記録に記載）。実在の交信ではありません。
+`public/samples/demo-dispatch.mp3` は本プロジェクトで作成した架空の交信の合成音声です。実在の交信ではありません。
+音声合成：Kokoro-82M（hexgrad、Apache-2.0）。生成手順は `scripts/demo-audio/` を参照。

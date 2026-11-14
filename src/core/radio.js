@@ -71,6 +71,8 @@ const UNIT_RE = new RegExp(`(?<!Fire |Ladder |Patrol )\\b(Engine|Ladder|Truck|Ba
  */
 export function normalizeRadioText(input) {
   let text = ` ${input} `.replace(/\s+/g, ' ');
+  // Whisper がよく聞き違える無線用語
+  text = text.replace(/\b(and|in|on) route\b/gi, 'en route').replace(/\bcopies and route\b/gi, 'copies en route');
   const codes = [];
   const units = [];
 
@@ -138,6 +140,13 @@ export function normalizeRadioText(input) {
     .replace(/\bEMS\b/g, 'emergency medical services')
     .replace(/\s+/g, ' ')
     .trim();
+  // 小型翻訳モデルは「2 occupants」のような数字+複数名詞を崩しやすいので、1桁の数は英単語にする（two occupants は正しく訳せる）
+  const DIGIT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+  text = text.replace(/(\b[A-Za-z]+\s+)?\b([1-9])\s+([a-z]{3,}s)\b/g, (m, prev, d, noun) => {
+    // 部隊番号・道路番号（Engine 5 crews / Highway 9 ...）は数字のまま
+    if (prev && /^(Engine|Truck|Chief|Rescue|Squad|Ambulance|Unit|Car|Highway|Route|Interstate|Channel|Station|Medic|Ladder)\s+$/i.test(prev)) return m;
+    return `${prev || ''}${DIGIT_WORDS[d]} ${noun}`;
+  });
   // コード展開と本人の言い直しが重なった重複（"no further assistance needed, No further assistance needed"）を除く
   text = text.replace(/\b([a-z][\w ]{8,}?)([,.]?)\s+\1\b/gi, '$1');
 
