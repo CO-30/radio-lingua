@@ -3,6 +3,7 @@
 
 import { StreamResampler } from './resample.js';
 import { StreamingSegmenter } from './segmenter.js';
+import workletUrl from './capture-worklet.js?url';
 
 export const SOURCE_KINDS = {
   sample: { label: 'デモ交信（合成音声）' },
@@ -39,7 +40,11 @@ export class Capture extends EventTarget {
     return this.ctx;
   }
 
-  _startPipeline(sourceNode, { monitor }) {
+  /**
+   * 取り込んだ音声を 16kHz化 → 交信区切り へ流す。
+   * 音声処理専用スレッド（AudioWorklet）を優先し、使えないブラウザでは従来方式（ScriptProcessor）で動かす。
+   */
+  async _startPipeline(sourceNode, { monitor }) {
     const ctx = this.ctx;
     this.resampler = new StreamResampler(ctx.sampleRate, 16000);
     this.analyser = ctx.createAnalyser();
@@ -52,19 +57,46 @@ export class Capture extends EventTarget {
       onSegment: (seg) => this._emit('segment', seg),
       onLevel: (level, active) => this._emit('level', { level, active }),
     });
-    // ScriptProcessor は非推奨だが iOS Safari を含めて最も確実に動く
-    const proc = ctx.createScriptProcessor(4096, 1, 1);
-    proc.onaudioprocess = (e) => {
+    const onChunk = (input) => {
       if (!this.running) return;
-      const input = e.inputBuffer.getChannelData(0);
       for (let i = 0; i < input.length; i += 64) if (Math.abs(input[i]) > this.maxLevel) this.maxLevel = Math.abs(input[i]);
       this.segmenter.push(this.resampler.push(input));
-      e.outputBuffer.getChannelData(0).fill(0);
     };
-    sourceNode.connect(proc);
-    proc.connect(ctx.destination); // 処理を動かすため（無音を出力）
+    let node = null;
+    if (ctx.audioWorklet && !this.forceLegacy) {
+      try {
+        if (this.workletCtx !== ctx) {
+          await ctx.audioWorklet.addModule(workletUrl);
+          this.workletCtx = ctx;
+        }
+        node = new AudioWorkletNode(ctx, 'radio-lingua-capture', {
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          outputChannelCount: [1],
+          channelCount: 1,
+          channelCountMode: 'explicit',
+          channelInterpretation: 'speakers', // ステレオはモノラルに混ぜる
+        });
+        node.port.onmessage = (e) => onChunk(e.data);
+        this.mode = 'worklet';
+      } catch (e) {
+        console.warn('AudioWorklet を使えないため従来方式で取り込みます', e);
+        node = null;
+      }
+    }
+    if (!node) {
+      const proc = ctx.createScriptProcessor(4096, 1, 1);
+      proc.onaudioprocess = (e) => {
+        onChunk(e.inputBuffer.getChannelData(0));
+        e.outputBuffer.getChannelData(0).fill(0);
+      };
+      node = proc;
+      this.mode = 'script';
+    }
+    sourceNode.connect(node);
+    node.connect(ctx.destination); // 処理を動かし続けるため（出力は無音）
     if (monitor) sourceNode.connect(ctx.destination);
-    this.node = proc;
+    this.node = node;
     this.srcNode = sourceNode;
     this.running = true;
     this._emit('start', {});
@@ -102,7 +134,7 @@ export class Capture extends EventTarget {
     el.crossOrigin = 'anonymous';
     this.mediaEl = el;
     const node = ctx.createMediaElementSource(el);
-    this._startPipeline(node, { monitor: true });
+    await this._startPipeline(node, { monitor: true });
     el.addEventListener('ended', () => {
       this.segmenter?.flush();
       this._emit('ended', {});
@@ -118,7 +150,7 @@ export class Capture extends EventTarget {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
     const ctx = await this._ensureCtx();
     this.stream = stream;
-    this._startPipeline(ctx.createMediaStreamSource(stream), { monitor: false });
+    await this._startPipeline(ctx.createMediaStreamSource(stream), { monitor: false });
   }
 
   async startTab() {
@@ -131,7 +163,7 @@ export class Capture extends EventTarget {
     const ctx = await this._ensureCtx();
     this.stream = stream;
     stream.getAudioTracks()[0].addEventListener('ended', () => this.stop());
-    this._startPipeline(ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())), { monitor: false });
+    await this._startPipeline(ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())), { monitor: false });
   }
 
   async stop() {
@@ -142,6 +174,7 @@ export class Capture extends EventTarget {
       this.segmenter?.flush();
     } catch {}
     try {
+      if (this.node?.port) this.node.port.onmessage = null;
       this.node?.disconnect();
       this.srcNode?.disconnect();
       this.analyser?.disconnect();

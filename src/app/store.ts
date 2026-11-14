@@ -39,6 +39,7 @@ export interface Transmission {
   stationName?: string;
   source?: string;
   starred?: boolean;
+  alerts?: string[];
   ms?: { asr: number; mt: number };
 }
 
@@ -51,6 +52,10 @@ export interface Settings {
   forceWasm: boolean;
   autoSpeak: boolean;
   saveHistory: boolean;
+  alertsOn: boolean;
+  alertKeywords: string[];
+  alertSound: boolean;
+  alertNotify: boolean;
 }
 
 export interface AppState {

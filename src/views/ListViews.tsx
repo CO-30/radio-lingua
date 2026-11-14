@@ -155,13 +155,20 @@ export function HistoryView() {
   const [q, setQ] = useState('');
   const [type, setType] = useState('all');
   const [starredOnly, setStarredOnly] = useState(false);
+  const [alertOnly, setAlertOnly] = useState(false);
   const list = useMemo(() => {
     const query = q.trim().toLowerCase();
     return all
-      .filter((h) => (type === 'all' || h.category === type) && (!starredOnly || h.starred) && (!query || `${h.ja} ${h.en} ${h.stationName || ''}`.toLowerCase().includes(query)))
+      .filter(
+        (h) =>
+          (type === 'all' || h.category === type) &&
+          (!starredOnly || h.starred) &&
+          (!alertOnly || h.alerts?.length) &&
+          (!query || `${h.ja} ${h.en} ${h.stationName || ''}`.toLowerCase().includes(query)),
+      )
       .slice()
       .reverse();
-  }, [all, q, type, starredOnly]);
+  }, [all, q, type, starredOnly, alertOnly]);
   const groups = useMemo(() => {
     const m = new Map<string, typeof list>();
     for (const it of list) {
@@ -206,6 +213,11 @@ export function HistoryView() {
           <input type="checkbox" checked={starredOnly} onChange={(e) => setStarredOnly(e.target.checked)} />
           <span className="switch-track" aria-hidden="true" />
           重要のみ
+        </label>
+        <label className="switch">
+          <input type="checkbox" checked={alertOnly} onChange={(e) => setAlertOnly(e.target.checked)} />
+          <span className="switch-track" aria-hidden="true" />
+          通知のみ
         </label>
       </div>
       <p className="count">{list.length}件</p>

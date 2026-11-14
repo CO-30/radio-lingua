@@ -25,7 +25,7 @@ export function TransmissionRow({ item, showStation = false }: { item: Transmiss
   // 届いた直後の交信だけ、ほのかに光らせる（一覧を開いただけでは光らせない）
   const [isNew] = useState(() => Date.now() - item.ts < 3000);
   return (
-    <li className={`tx cat-${cat}${item.starred ? ' is-starred' : ''}${isNew ? ' is-new' : ''}`}>
+    <li className={`tx cat-${cat}${item.starred ? ' is-starred' : ''}${isNew ? ' is-new' : ''}${item.alerts?.length ? ' is-alert' : ''}`}>
       <div className="tx-meta">
         <time className="tx-time" dateTime={new Date(item.ts).toISOString()}>
           {fmtTime(item.ts)}
@@ -35,6 +35,11 @@ export function TransmissionRow({ item, showStation = false }: { item: Transmiss
           {TYPE_LABEL[cat]}
         </span>
         {showStation && item.stationName && <span className="tx-station">{item.stationName}</span>}
+        {item.alerts?.length ? (
+          <span className="alert-tag" title="キーワード通知に一致">
+            {item.alerts.join('・')}
+          </span>
+        ) : null}
       </div>
       <div className="tx-body">
         <p className="tx-en" lang="en">

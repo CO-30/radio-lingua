@@ -7,12 +7,14 @@
  │    └─ 状態管理 src/app/store.ts ・ 操作 src/app/services.ts
  ├─ 音声の取り込み src/core/capture.js
  │    デモ音声・録音ファイル・マイク（受信機）・タブ音声・配信URL
+│    音声処理専用スレッド（AudioWorklet、src/core/capture-worklet.js）。使えない環境は ScriptProcessor
  │    → 16kHz化 src/core/resample.js → 交信の区切り src/core/segmenter.js
  ├─ AIエンジン（Web Worker）src/worker/engine.worker.js
  │    Whisper（音声認識）→ 無線用語の正規化 src/core/radio.js → 翻訳（LFM2 / FuguMT）
  │    確信度の記録 → 不確かな語 src/core/confidence.js
  │    WebGPU優先・WASM（CPU）予備。初回ウォームアップと応答なし時のCPU自動切替
- ├─ 端末内の保存（localStorage）履歴・設定・追加した局・お気に入り
+ ├─ キーワード通知 src/core/alerts.js（一致判定）・src/core/chime.js（通知音）・端末の通知（許可時のみ）
+├─ 端末内の保存（localStorage）履歴・設定・追加した局・お気に入り
  ├─ 読み上げ src/core/tts.js（OS標準の音声合成）
  └─ Service Worker public/sw.js（画面の保存・圏外でも起動）
 
@@ -60,5 +62,5 @@
 ## 制約と既知の限界
 - 初回はAIモデルのダウンロード（PC既定 約500MB）が必要
 - 端末の性能に依存。GPUの初回準備に時間がかかる端末があり、CPU自動切替で対処
-- 取り込みは ScriptProcessorNode（全ブラウザで確実に動くため）。将来 AudioWorklet へ移行予定
+- 取り込みは AudioWorklet を優先（v1.2）。使えない環境では ScriptProcessor に自動で切り替える（両方式でデモ6交信を確認済み）
 - GitHub Pages では HTTP ヘッダーを設定できず、Web Worker に CSP がかからない（docs/SECURITY.md）

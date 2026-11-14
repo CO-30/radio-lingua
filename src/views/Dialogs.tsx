@@ -1,7 +1,8 @@
 // 設定・局の追加・AIモデルのダウンロード確認。
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useApp, setState, type Settings } from '../app/store';
-import { addStation, answerConsent, updateSettings } from '../app/services';
+import { addStation, answerConsent, requestNotifyPermission, updateSettings } from '../app/services';
+import { addKeyword, SUGGESTED_ALERTS } from '../core/alerts.js';
 import { countryOptions } from '../app/geo';
 import { navigate } from '../app/router';
 import { canCaptureTab } from '../core/capture.js';
@@ -31,11 +32,22 @@ export function SettingsDialog() {
   const open = useApp((s) => s.settingsOpen);
   const settings = useApp((s) => s.settings);
   const [draft, setDraft] = useState<Settings>(settings);
+  const [kw, setKw] = useState('');
+  const [notifyNote, setNotifyNote] = useState('');
   useEffect(() => {
-    if (open) setDraft(settings);
+    if (open) {
+      setDraft(settings);
+      setKw('');
+      setNotifyNote('');
+    }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const close = () => setState({ settingsOpen: false });
-  const set = (p: Partial<Settings>) => setDraft({ ...draft, ...p });
+  const set = (p: Partial<Settings>) => setDraft((d) => ({ ...d, ...p }));
+  const addKw = (raw: string) => {
+    const next = addKeyword(draft.alertKeywords, raw);
+    set({ alertKeywords: next, alertsOn: next.length > draft.alertKeywords.length ? true : draft.alertsOn });
+    setKw('');
+  };
   return (
     <Modal open={open} onClose={close} title="設定" id="settings">
       <form
@@ -95,6 +107,66 @@ export function SettingsDialog() {
             文字の大きさ
             <input type="range" min="0.85" max="1.4" step="0.05" value={draft.size} onChange={(e) => set({ size: Number(e.target.value) })} />
           </label>
+        </fieldset>
+        <fieldset className="alerts">
+          <legend>キーワード通知</legend>
+          <label className="option">
+            <input type="checkbox" checked={draft.alertsOn} onChange={(e) => set({ alertsOn: e.target.checked })} />
+            <span>登録した語を含む交信を知らせる</span>
+          </label>
+          <div className="kw-input">
+            <input
+              value={kw}
+              onChange={(e) => setKw(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addKw(kw);
+                }
+              }}
+              placeholder="例：structure fire、火災"
+              aria-label="通知するキーワード"
+              maxLength={40}
+            />
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => addKw(kw)} disabled={!kw.trim()}>
+              追加
+            </button>
+          </div>
+          {draft.alertKeywords.length > 0 && (
+            <div className="chips" aria-label="登録中のキーワード">
+              {draft.alertKeywords.map((k) => (
+                <button key={k} type="button" className="chip is-on kw" onClick={() => set({ alertKeywords: draft.alertKeywords.filter((x) => x !== k) })} aria-label={`${k}を削除`} title="押すと削除">
+                  {k} ×
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="chips kw-suggest" aria-label="よく使われる語">
+            {SUGGESTED_ALERTS.filter((k) => !draft.alertKeywords.includes(k)).map((k) => (
+              <button key={k} type="button" className="chip" onClick={() => addKw(k)}>
+                ＋ {k}
+              </button>
+            ))}
+          </div>
+          <label className="option">
+            <input type="checkbox" checked={draft.alertSound} onChange={(e) => set({ alertSound: e.target.checked })} />
+            <span>通知音を鳴らす</span>
+          </label>
+          <label className="option">
+            <input
+              type="checkbox"
+              checked={draft.alertNotify}
+              onChange={async (e) => {
+                if (!e.target.checked) return set({ alertNotify: false });
+                const ok = await requestNotifyPermission();
+                set({ alertNotify: ok });
+                setNotifyNote(ok ? '' : '端末の通知が許可されていません。ブラウザの設定から許可してください。');
+              }}
+            />
+            <span>別の画面を見ているときは端末に通知</span>
+          </label>
+          {notifyNote && <p className="sheet-note">{notifyNote}</p>}
+          <p className="sheet-note">英語は単語の先頭から一致（「evacuat」で evacuate・evacuation）、日本語は訳文で一致します。</p>
         </fieldset>
         <fieldset>
           <legend>プライバシーと動作</legend>

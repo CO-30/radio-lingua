@@ -1,6 +1,6 @@
 // ライブ翻訳画面：無線を聞きながら、原文と日本語訳を並べて確認する。
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useApp } from '../app/store';
+import { useApp, setState } from '../app/store';
 import { startLive, stopLive, stationById, updateSettings } from '../app/services';
 import { countryName } from '../app/geo';
 import { navigate } from '../app/router';
@@ -29,6 +29,8 @@ export function LiveView({ stationId }: { stationId: string }) {
   const engine = useApp((s) => s.engine);
   const allHistory = useApp((s) => s.history);
   const autoSpeak = useApp((s) => s.settings.autoSpeak);
+  const alertsOn = useApp((s) => s.settings.alertsOn);
+  const alertCount = useApp((s) => s.settings.alertKeywords.length);
   const fileRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLOListElement>(null);
   const [stick, setStick] = useState(true);
@@ -122,6 +124,9 @@ export function LiveView({ stationId }: { stationId: string }) {
             <span className="switch-track" aria-hidden="true" />
             新しい交信を読み上げ
           </label>
+          <button className={`text-btn alert-state${alertsOn && alertCount ? ' is-on' : ''}`} onClick={() => setState({ settingsOpen: true })}>
+            {alertsOn && alertCount ? `キーワード通知：${alertCount}語` : 'キーワード通知を設定'}
+          </button>
         </div>
         {loading && isThis && (
           <div className="prep">

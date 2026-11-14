@@ -45,9 +45,16 @@ async function run(name, contextOpts, mobile) {
   await shot('1b-map-country');
   await page.locator('.map-panel .station .btn-primary').first().click();
 
-  // 2. ライブ翻訳
+  // 2. ライブ翻訳（先にキーワード通知を設定）
   await page.waitForSelector('.liveview');
   check(page.url().includes('#/live/demo'), '「聞く」でライブ翻訳画面へ移る');
+  await page.click('.alert-state');
+  await page.waitForSelector('#settings-title');
+  await page.locator('dialog[open] .kw-suggest .chip', { hasText: 'structure fire' }).click();
+  check((await page.locator('dialog[open] .chip.kw').count()) === 1, 'キーワードを提案から登録できる');
+  await page.click('dialog[open] button[type=submit]');
+  await page.waitForTimeout(200);
+  check((await page.locator('.alert-state').textContent()).includes('1語'), 'ライブ画面にキーワード通知の状態が出る');
   await page.click('.live-controls .btn-primary');
   await page.waitForFunction(() => window.__rl.getState().live.running, null, { timeout: 15000 });
   check((await page.locator('.live-status-text').textContent()) === '受信中', '受信中の表示');
@@ -63,6 +70,9 @@ async function run(name, contextOpts, mobile) {
   check((await page.locator('mark.unsure').count()) >= 1, '聞き取りが不確かな語が強調される');
   check((await page.locator('.tx-unsure').count()) >= 1, '不確かな語の注意書きが訳の下に出る');
   check((await page.locator('.code').count()) >= 2, '10コードの意味が表示される');
+  check((await page.locator('.tx.is-alert').count()) === 1, 'キーワードに一致した交信だけが強調される');
+  check((await page.locator('.tx.is-alert .alert-tag').textContent()) === 'structure fire', '一致した語が表示される');
+  check(await page.evaluate(() => window.__rl.capture.mode === 'worklet'), '音声は AudioWorklet で取り込む（Chrome）');
   await page.locator('.term').first().click();
   check(await page.locator('.term-desc').first().isVisible(), '用語を押すと補足説明が出る');
   await page.locator('.tx .icon-btn[aria-pressed]').first().click();
@@ -93,6 +103,9 @@ async function run(name, contextOpts, mobile) {
   await page.locator('.filters .chip', { hasText: '警察' }).click();
   check((await page.locator('.tx').count()) === 2, '履歴を種別で絞り込める（警察2件）');
   await page.locator('.filters .chip', { hasText: 'すべて' }).click();
+  await page.locator('.filters .switch', { hasText: '通知のみ' }).click();
+  check((await page.locator('.tx').count()) === 1, '履歴を「通知のみ」で絞り込める');
+  await page.locator('.filters .switch', { hasText: '通知のみ' }).click();
   await page.fill('.search input', '救急車7');
   check((await page.locator('.tx').count()) === 2, '履歴を文字で検索できる');
   await page.fill('.search input', '');

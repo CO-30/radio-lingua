@@ -8,6 +8,8 @@ import { DEMO_STATION, makeUserStation } from '../core/stations.js';
 import { initState, getState, setState, type Settings, type Station, type Transmission } from './store';
 import { countryCenter } from './geo';
 import { runBench } from '../core/bench.js';
+import { matchAlerts } from '../core/alerts.js';
+import { playChime } from '../core/chime.js';
 
 const SETTINGS_KEY = 'radiolingua.settings.v1';
 const STATIONS_KEY = 'radiolingua.stations.v1';
@@ -40,6 +42,10 @@ function loadSettings(): Settings {
     forceWasm: false,
     autoSpeak: false,
     saveHistory: true,
+    alertsOn: false,
+    alertKeywords: [],
+    alertSound: true,
+    alertNotify: false,
   };
   const saved = readJSON<Partial<Settings> & { tts?: boolean }>(SETTINGS_KEY, {});
   if (saved.tts !== undefined && saved.autoSpeak === undefined) saved.autoSpeak = saved.tts; // v0.2 からの引き継ぎ
@@ -232,15 +238,40 @@ function onResult({ id, caption, ms }: { id: number; caption: any; ms: any }) {
   if (!caption) return;
   const st = getState();
   const station = stationById(st.live.stationId);
+  const alerts = st.settings.alertsOn ? matchAlerts(caption, st.settings.alertKeywords) : [];
   const item: Transmission = history.add({
     ...caption,
     stationId: station?.id,
     stationName: station?.name,
     source: st.live.fileName || station?.name,
     ms,
+    ...(alerts.length ? { alerts } : {}),
   });
   setState((s) => ({ history: [...history.items], historyVersion: s.historyVersion + 1 }));
+  if (alerts.length) notifyAlert(item, alerts);
   if (st.settings.autoSpeak) speaker.speak(item.ja);
+}
+
+/* ---------- キーワード通知 ---------- */
+function notifyAlert(item: Transmission, alerts: string[]) {
+  const s = getState().settings;
+  if (s.alertSound) playChime();
+  // 画面を見ていないときだけ、端末の通知を出す（許可済みの場合）
+  if (s.alertNotify && typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.visibilityState === 'hidden') {
+    try {
+      new Notification(`RADIO LINGUA：${alerts.join('、')}`, { body: `${item.stationName || ''} ${item.ja}`.trim(), tag: item.id, icon: `${import.meta.env.BASE_URL}icons/icon-192.png` });
+    } catch {
+      /* 通知が使えない環境では音と画面表示のみ */
+    }
+  }
+}
+
+/** 端末の通知の許可を求める（利用者が通知をオンにしたときだけ呼ぶ） */
+export async function requestNotifyPermission(): Promise<boolean> {
+  if (typeof Notification === 'undefined') return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  return (await Notification.requestPermission()) === 'granted';
 }
 
 /* ---------- 読み上げ（交信ごと） ---------- */
@@ -305,6 +336,7 @@ export function download(name: string, text: string, type: string) {
 (window as any).__rl = {
   getState,
   history,
+  capture,
   get engine() {
     return engine;
   },
