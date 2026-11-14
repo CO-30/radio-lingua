@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { preprocessText, encodeText, splitForSpeech, sampleNoisyLatent, synthesize } from '../../src/core/supertonic.js';
 import { AiVoice } from '../../src/core/aivoice.js';
 
@@ -104,10 +104,11 @@ describe('AI音声：再生の管理', () => {
     v._onMessage({ type: 'ready', device: 'wasm', rtf: 0.3 });
     let ended = 0;
     expect(v.speak('一つ目。二つ目。', { onend: () => ended++ })).toBe(true);
-    const speaks = posted.filter((m) => m.type === 'speak');
-    expect(speaks.map((m) => m.text)).toEqual(['一つ目。', '二つ目。']);
-    v._onMessage({ type: 'audio', seq: speaks[0].seq, pcm: new Float32Array(4410), sampleRate: 44100 });
-    v._onMessage({ type: 'audio', seq: speaks[1].seq, pcm: new Float32Array(4410), sampleRate: 44100 });
+    const speaks = () => posted.filter((m) => m.type === 'speak');
+    expect(speaks().map((m) => m.text)).toEqual(['一つ目。']); // 1文ずつ依頼する
+    v._onMessage({ type: 'audio', seq: speaks()[0].seq, pcm: new Float32Array(4410), sampleRate: 44100 });
+    expect(speaks().map((m) => m.text)).toEqual(['一つ目。', '二つ目。']);
+    v._onMessage({ type: 'audio', seq: speaks()[1].seq, pcm: new Float32Array(4410), sampleRate: 44100 });
     expect(started.length).toBe(2);
     expect(started[1]).toBeGreaterThan(started[0]); // 重ならずに続けて鳴る
     expect(v.pending).toBe(1);
@@ -170,5 +171,29 @@ describe('AI音声：最初の計測で一気に合わせる', () => {
     const v = mk();
     feed(v, 0.3);
     expect(v.steps).toBe(8);
+  });
+});
+
+describe('AI音声：字幕の処理を優先する', () => {
+  it('字幕の処理中は合成を待ち、空いたら依頼する。待ちすぎたら依頼する', () => {
+    vi.useFakeTimers();
+    const posted = [];
+    let busy = true;
+    const v = new AiVoice({ createWorker: () => ({ postMessage: (m) => posted.push(m) }), isBusy: () => busy, AudioCtx: null });
+    v.ensure('ai-f');
+    v._onMessage({ type: 'ready', device: 'wasm' });
+    v.speak('了解。');
+    expect(posted.filter((m) => m.type === 'speak').length).toBe(0);
+    vi.advanceTimersByTime(1000);
+    expect(posted.filter((m) => m.type === 'speak').length).toBe(0);
+    busy = false;
+    vi.advanceTimersByTime(300);
+    expect(posted.filter((m) => m.type === 'speak').length).toBe(1);
+    v._onMessage({ type: 'skipped', seq: 1 });
+    busy = true;
+    v.speak('現着。');
+    vi.advanceTimersByTime(AiVoice.MAX_WAIT_MS + 300);
+    expect(posted.filter((m) => m.type === 'speak').length).toBe(2);
+    vi.useRealTimers();
   });
 });

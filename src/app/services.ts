@@ -63,6 +63,8 @@ let voiceAllowed = false; // 起動直後の確認が終わるまで、AI音声�
 speaker.ai = new AiVoice({
   createWorker: () => new Worker(new URL('../worker/tts.worker.js', import.meta.url), { type: 'module' }),
   onState: (v) => setState({ voice: { ...v } }),
+  // 字幕（音声認識・翻訳）の処理中は読み上げの合成を待つ。字幕を優先する
+  isBusy: () => Object.values(getState().sessions).some((x) => x.pending > 0),
 });
 /** 同時に受信できる局の数（AIは1つを共有するため、増やすと字幕が遅れやすい） */
 export const MAX_SESSIONS = 3;

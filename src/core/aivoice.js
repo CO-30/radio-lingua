@@ -15,9 +15,15 @@ export async function isVoiceCached(url) {
 
 export class AiVoice {
   static STEPS = [8, 6, 5, 4];
-  /** @param {{ createWorker: () => Worker, onState?: (s: any) => void, AudioCtx?: any }} opts */
-  constructor({ createWorker, onState = () => {}, AudioCtx = globalThis.AudioContext || globalThis.webkitAudioContext } = {}) {
+  static MAX_WAIT_MS = 4000; // 字幕の処理が続いても、これ以上は読み上げを待たせない
+  /** @param {{ createWorker: () => Worker, onState?: (s: any) => void, isBusy?: () => boolean, AudioCtx?: any }} opts */
+  constructor({ createWorker, onState = () => {}, isBusy = () => false, AudioCtx = globalThis.AudioContext || globalThis.webkitAudioContext } = {}) {
     this.createWorker = createWorker;
+    this.isBusy = isBusy;
+    this.outbox = [];
+    this.inflight = 0;
+    this.waitSince = null;
+    this.pumpTimer = null;
     this.onState = onState;
     this.AudioCtx = AudioCtx;
     this.worker = null;
@@ -86,11 +92,15 @@ export class AiVoice {
     else if (m.type === 'ready') this._set({ status: 'ready', progress: 1, device: m.device, rtf: null });
     else if (m.type === 'error') this._set({ status: 'error', error: m.error });
     else if (m.type === 'audio') {
+      this._settled(m.seq);
       this._adapt(m.seq, m.ms, m.duration);
       this._set({ rtf: this.rtfAvg == null ? this.state.rtf : +this.rtfAvg.toFixed(2), steps: this.steps });
       this._play(m.seq, m.pcm, m.sampleRate);
     }
-    else if (m.type === 'skipped' || m.type === 'speak-error') this._finishPart(m.seq);
+    else if (m.type === 'skipped' || m.type === 'speak-error') {
+      this._settled(m.seq);
+      this._finishPart(m.seq);
+    }
   }
   unlock() {
     try {
@@ -100,7 +110,10 @@ export class AiVoice {
       /* 音声出力が使えない環境 */
     }
   }
-  /** 文ごとに作って、できた順に途切れなく鳴らす。全部鳴り終わったら onend */
+  /**
+   * 文ごとに作って、できた順に途切れなく鳴らす。全部鳴り終わったら onend。
+   * 字幕のAI（音声認識・翻訳）と処理を取り合わないよう、1文ずつ、字幕の処理が空いたときに依頼する。
+   */
   speak(text, { speed = 1, onend } = {}) {
     const parts = splitForSpeech(text);
     if (!this.worker || !this.ready || !parts.length) return false;
@@ -110,10 +123,28 @@ export class AiVoice {
     for (const p of parts) {
       const seq = ++this.seq;
       this.bySeq.set(seq, u);
-      this.stepsBySeq.set(seq, this.steps);
-      this.worker.postMessage({ type: 'speak', seq, text: p, voice: this.voice, speed, steps: this.steps });
+      this.outbox.push({ seq, text: p, speed });
     }
+    this._pump();
     return true;
+  }
+  _pump() {
+    clearTimeout(this.pumpTimer);
+    if (this.inflight || !this.outbox.length || !this.worker) return;
+    const waited = Date.now() - (this.waitSince ??= Date.now());
+    if (this.isBusy() && waited < AiVoice.MAX_WAIT_MS) {
+      this.pumpTimer = setTimeout(() => this._pump(), 250);
+      return;
+    }
+    this.waitSince = null;
+    const m = this.outbox.shift();
+    this.inflight = m.seq;
+    this.stepsBySeq.set(m.seq, this.steps);
+    this.worker.postMessage({ type: 'speak', seq: m.seq, text: m.text, voice: this.voice, speed: m.speed, steps: this.steps });
+  }
+  _settled(seq) {
+    if (this.inflight === seq) this.inflight = 0;
+    this._pump();
   }
   get pending() {
     return this.utterances.filter((u) => !u.done).length;
@@ -148,6 +179,9 @@ export class AiVoice {
   }
   stop() {
     this.worker?.postMessage({ type: 'cancel', before: this.seq + 1 });
+    this.outbox = [];
+    clearTimeout(this.pumpTimer);
+    this.waitSince = null;
     for (const s of this.sources) {
       s.onended = null;
       try {
