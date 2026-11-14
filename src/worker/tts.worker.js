@@ -115,9 +115,9 @@ self.onmessage = (e) => {
       try {
         await loadStyle(m.voice);
         const t0 = performance.now();
-        const { pcm, sampleRate, duration } = await synthesize(ort, sessions, cfgs, indexer, styles[m.voice], m.text, { speed: m.speed || 1, steps: m.steps });
+        const { pcm, sampleRate, duration, prof } = await synthesize(ort, sessions, cfgs, indexer, styles[m.voice], m.text, { speed: m.speed || 1, steps: m.steps });
         if (m.seq < cancelBefore) return post({ type: 'skipped', seq: m.seq });
-        post({ type: 'audio', seq: m.seq, pcm, sampleRate, ms: Math.round(performance.now() - t0), duration }, [pcm.buffer]);
+        post({ type: 'audio', seq: m.seq, pcm, sampleRate, ms: Math.round(performance.now() - t0), duration, prof }, [pcm.buffer]);
       } catch (err) {
         post({ type: 'speak-error', seq: m.seq, error: String(err?.message || err) });
       }

@@ -112,14 +112,21 @@ export function styleTensors(ort, json) {
  */
 export async function synthesize(ort, sessions, cfgs, indexer, style, text, { speed = 1.0, steps, rand = Math.random } = {}) {
   steps = steps || SUPERTONIC.steps;
+  const now = () => (globalThis.performance ? performance.now() : Date.now());
+  const prof = { dp: 0, enc: 0, ve: 0, voc: 0 };
+  let t = now();
   const ids = encodeText(indexer, text, 'ja');
   const textIds = new ort.Tensor('int64', ids, [1, ids.length]);
   const textMask = new ort.Tensor('float32', new Float32Array(ids.length).fill(1), [1, 1, ids.length]);
 
   const dp = await sessions.duration_predictor.run({ text_ids: textIds, style_dp: style.dp, text_mask: textMask });
   const duration = dp.duration.data[0] / speed;
+  prof.dp = now() - t;
+  t = now();
 
   const enc = await sessions.text_encoder.run({ text_ids: textIds, style_ttl: style.ttl, text_mask: textMask });
+  prof.enc = now() - t;
+  t = now();
   const { xt: x0, dims, mask } = sampleNoisyLatent(duration, cfgs, rand);
   let xt = x0;
   const latentMask = new ort.Tensor('float32', mask, [1, 1, dims[2]]);
@@ -136,8 +143,11 @@ export async function synthesize(ort, sessions, cfgs, indexer, style, text, { sp
     });
     xt = new Float32Array(out.denoised_latent.data);
   }
+  prof.ve = now() - t;
+  t = now();
   const voc = await sessions.vocoder.run({ latent: new ort.Tensor('float32', xt, dims) });
   const wav = voc.wav_tts.data;
+  prof.voc = now() - t;
   const n = Math.min(wav.length, Math.floor(cfgs.ae.sample_rate * duration));
-  return { pcm: Float32Array.from(wav.subarray(0, n)), sampleRate: cfgs.ae.sample_rate, duration };
+  return { pcm: Float32Array.from(wav.subarray(0, n)), sampleRate: cfgs.ae.sample_rate, duration, prof };
 }
