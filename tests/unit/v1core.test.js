@@ -49,6 +49,10 @@ describe('確信度', () => {
     const keys = [' seven', ' salmon', ' seventy'].map(vocabKey);
     expect(stepConfidence([1.0, 0.9, -3], keys).p).toBeLessThan(0.6);
   });
+  it('数詞と数字（two と 2）は同じ語として扱う', () => {
+    const keys = [' 2', ' two', ' to'].map(vocabKey);
+    expect(stepConfidence([1.0, 0.95, -2], keys).p).toBeGreaterThan(0.9);
+  });
   it('記号だけの語は判定しない', () => {
     const keys = ['.', ',', ' and'].map(vocabKey);
     expect(stepConfidence([1.0, 0.95, 0.9], keys)).toEqual({ id: 0, p: 1 });

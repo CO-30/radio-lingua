@@ -4,10 +4,13 @@
 export const UNCERTAIN_BELOW = 0.5;
 
 /** 語彙の比較用キー：大文字小文字・記号・空白の違いを無視する（"Southbound"="southbound"、"40."="40,"） */
+const NUMBER_WORDS = { zero: '0', oh: '0', one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9', ten: '10', eleven: '11', twelve: '12', twenty: '20', thirty: '30', forty: '40', fifty: '50' };
+
 export function vocabKey(piece) {
-  return String(piece || '')
+  const k = String(piece || '')
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]/gu, '');
+  return NUMBER_WORDS[k] ?? k; // "two" と "2" も同じ語として扱う
 }
 
 /**
