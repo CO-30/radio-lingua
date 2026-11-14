@@ -247,6 +247,36 @@ function endSentence(ja) {
   return /[。！？!?」]$/.test(ja) ? ja : `${ja}。`;
 }
 
+/** 1文を訳す。定型句は辞書、長い文は読点で区切って小分けに機械翻訳する（小型モデルの暴走防止） */
+async function translateClause(rest, translate) {
+  const key = phraseKey(rest);
+  if (!key) return '';
+  if (PHRASES[key]) return PHRASES[key];
+  const clauses = rest.split(/,\s+/).filter((c) => phraseKey(c));
+  const anyPhrase = clauses.some((c) => PHRASES[phraseKey(c)]);
+  if (clauses.length > 1 && (anyPhrase || rest.length > 60)) {
+    const out = [];
+    let buf = [];
+    const flush = async () => {
+      if (buf.length) out.push(polishJapanese(await translate(buf.join(', '))).replace(/。$/, ''));
+      buf = [];
+    };
+    for (const c of clauses) {
+      const k = phraseKey(c);
+      if (PHRASES[k]) {
+        await flush();
+        out.push(PHRASES[k]);
+      } else {
+        buf.push(c);
+        if (buf.join(', ').length > 40) await flush();
+      }
+    }
+    await flush();
+    return out.filter(Boolean).join('、');
+  }
+  return polishJapanese(await translate(rest));
+}
+
 /**
  * 正規化済みの英文を、文ごとに「辞書 → 呼出符号 → 機械翻訳」の順で訳す。
  * @param {string} text
@@ -264,12 +294,7 @@ export async function translateRadio(text, units, translate) {
       rest = rest.slice(unit.en.length).replace(/^[\s,]+/, '');
     }
     const key = phraseKey(rest);
-    const commaParts = rest.split(/,\s*/).map(phraseKey).filter(Boolean);
-    let ja;
-    if (!key) ja = '';
-    else if (PHRASES[key]) ja = PHRASES[key];
-    else if (commaParts.length > 1 && commaParts.every((k) => PHRASES[k])) ja = commaParts.map((k) => PHRASES[k]).join('、');
-    else ja = polishJapanese(await translate(rest));
+    const ja = await translateClause(rest, translate);
     if (prefix && ja) parts.push(endSentence(`${prefix}、${ja}`));
     else if (prefix) parts.push(endSentence(prefix));
     else if (ja) parts.push(endSentence(ja));

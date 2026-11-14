@@ -112,6 +112,18 @@ describe('buildCaption', () => {
     expect((await buildCaption('10-4.', mt)).ja).toBe('了解。');
     expect((await buildCaption('Code 4, no further assistance needed.', mt)).ja).toBe('応援不要。');
   });
+  it('定型句と自由文が混ざった文は分けて訳す', async () => {
+    const seen = [];
+    const cap = await buildCaption('Medic 7 responding, ETA 6 minutes.', async (en) => (seen.push(en), '到着予定6分'));
+    expect(seen).toEqual(['estimated arrival time 6 minutes.']);
+    expect(cap.ja).toBe('救急車7、出動する、到着予定6分。');
+  });
+  it('長い文は読点で小分けにする', async () => {
+    const seen = [];
+    await buildCaption('Unit 23, traffic stop on Highway 9 southbound near mile marker 40, silver sedan, two occupants.', async (en) => (seen.push(en), 'x'));
+    expect(seen.length).toBeGreaterThan(1);
+    expect(seen.every((s) => s.length <= 70)).toBe(true);
+  });
   it('文ごとに分けて翻訳する', async () => {
     const seen = [];
     await buildCaption('Dispatch to Engine 12. Respond to a fire at 421 Maple Avenue. Cross street is Oak Drive.', async (en) => (seen.push(en), 'x'));

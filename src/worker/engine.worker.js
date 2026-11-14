@@ -88,12 +88,12 @@ async function translate(text) {
         { role: 'user', content: text },
       ],
       // 入力に比例した上限で、小型モデルの「続きを書き足す」暴走を防ぐ
-      { max_new_tokens: Math.min(200, 16 + Math.ceil(text.length * 0.9)), do_sample: false, repetition_penalty: 1.05 },
+      { max_new_tokens: Math.min(160, 12 + Math.ceil(text.length * 0.7)), do_sample: false, repetition_penalty: 1.05 },
     );
     const g = out[0].generated_text;
     return Array.isArray(g) ? g.at(-1).content : String(g);
   }
-  const out = await mt(text, { max_new_tokens: Math.min(200, 16 + Math.ceil(text.length * 0.9)) });
+  const out = await mt(text, { max_new_tokens: Math.min(160, 12 + Math.ceil(text.length * 0.7)) });
   return out[0].translation_text;
 }
 
