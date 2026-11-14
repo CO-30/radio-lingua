@@ -1,0 +1,42 @@
+{
+  "label": "int8",
+  "loadMs": 1388,
+  "items": [
+    {
+      "voice": "F1",
+      "audioSec": 23,
+      "synthMs": 16668,
+      "rtf": 0.726
+    },
+    {
+      "voice": "F2",
+      "audioSec": 21.9,
+      "synthMs": 16032,
+      "rtf": 0.731
+    },
+    {
+      "voice": "F3",
+      "audioSec": 23.6,
+      "synthMs": 17082,
+      "rtf": 0.725
+    },
+    {
+      "voice": "M1",
+      "audioSec": 23,
+      "synthMs": 16622,
+      "rtf": 0.723
+    },
+    {
+      "voice": "M2",
+      "audioSec": 22.7,
+      "synthMs": 16445,
+      "rtf": 0.726
+    },
+    {
+      "voice": "M3",
+      "audioSec": 20,
+      "synthMs": 14711,
+      "rtf": 0.737
+    }
+  ]
+}

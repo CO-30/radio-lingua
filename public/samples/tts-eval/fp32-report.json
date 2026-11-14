@@ -1,0 +1,18 @@
+{
+  "label": "fp32",
+  "loadMs": 887,
+  "items": [
+    {
+      "voice": "F2",
+      "audioSec": 21.8,
+      "synthMs": 9472,
+      "rtf": 0.435
+    },
+    {
+      "voice": "M1",
+      "audioSec": 22.9,
+      "synthMs": 10061,
+      "rtf": 0.44
+    }
+  ]
+}
