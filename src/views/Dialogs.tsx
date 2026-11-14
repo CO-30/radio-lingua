@@ -1,7 +1,7 @@
 // 設定・局の追加・AIモデルのダウンロード確認。
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useApp, setState, type Settings } from '../app/store';
-import { addStation, answerConsent, requestNotifyPermission, updateSettings } from '../app/services';
+import { addStation, answerConsent, removeAiVoice, requestNotifyPermission, updateSettings } from '../app/services';
 import { addKeyword, SUGGESTED_ALERTS } from '../core/alerts.js';
 import { countryOptions } from '../app/geo';
 import { navigate } from '../app/router';
@@ -25,6 +25,46 @@ function Modal({ open, onClose, title, children, id }: { open: boolean; onClose:
       </div>
       {children}
     </dialog>
+  );
+}
+
+function VoiceFieldset({ value, onChange }: { value: Settings['voice']; onChange: (v: Settings['voice']) => void }) {
+  const v = useApp((s) => s.voice);
+  const saved = useApp((s) => s.settings.voice);
+  let status = '';
+  if (saved !== 'system') {
+    if (v.status === 'loading') status = `AI音声を準備中… ${Math.round(v.progress * 100)}%（準備ができるまでは端末の声で読みます）`;
+    else if (v.status === 'ready') status = `AI音声を使用中（${v.device === 'webgpu' ? 'GPU' : 'CPU'}・${v.rtf != null && v.rtf > 0.9 ? '処理が重く、読み上げが遅れることがあります' : '問題なく動作'}）`;
+    else if (v.status === 'error') status = `AI音声を準備できませんでした：${v.error}。端末の声で読み上げます。`;
+    else if (v.error) status = v.error;
+  }
+  return (
+    <fieldset>
+      <legend>読み上げの声</legend>
+      {(
+        [
+          ['system', '端末の声', '通信なし・すぐ使える'],
+          ['ai-f', 'AI音声（女性）', '自然な声・初回のみ約400MBを取得・PC推奨'],
+          ['ai-m', 'AI音声（男性）', '自然な声・初回のみ約400MBを取得・PC推奨'],
+        ] as const
+      ).map(([k, l, d]) => (
+        <label key={k} className="option">
+          <input type="radio" name="voice" value={k} checked={value === k} onChange={() => onChange(k)} />
+          <span>{l}</span>
+          <small>{d}</small>
+        </label>
+      ))}
+      {status && (
+        <p className={`hint voice-status ${v.status === 'error' ? 'is-warn' : ''}`} role="status">
+          {status}
+        </p>
+      )}
+      {saved !== 'system' && (v.status === 'ready' || v.status === 'error') && (
+        <button type="button" className="btn btn-ghost btn-small" onClick={() => void removeAiVoice().then(() => onChange('system'))}>
+          取得したAI音声を削除
+        </button>
+      )}
+    </fieldset>
   );
 }
 
@@ -89,6 +129,7 @@ export function SettingsDialog() {
             </label>
           ))}
         </fieldset>
+        <VoiceFieldset value={draft.voice} onChange={(voice) => set({ voice })} />
         <fieldset>
           <legend>表示と読み上げ</legend>
           <label className="option">

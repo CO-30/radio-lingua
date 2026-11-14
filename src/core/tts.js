@@ -26,6 +26,8 @@ export class Speaker {
     this.voice = null;
     this.maxQueue = 3; // 読み上げが追いつかない時は古いものを飛ばす
     this.pending = 0;
+    this.ai = null; // AI音声（準備ができたらこちらを優先）
+    this.useAi = false;
     if (synth) {
       this._pickVoice();
       synth.addEventListener?.('voiceschanged', () => this._pickVoice());
@@ -34,12 +36,21 @@ export class Speaker {
   get supported() {
     return !!this.synth && typeof SpeechSynthesisUtterance !== 'undefined';
   }
+  /** AI音声を使える状態か（準備中や失敗時は端末の声で読む） */
+  get aiActive() {
+    return this.useAi && !!this.ai?.ready;
+  }
   _pickVoice() {
     this.voice = pickJapaneseVoice(this.synth.getVoices?.() || []);
   }
   /** 1件だけ読み上げる（自動読み上げの設定に関係なく）。終わったら onend */
   speakNow(text, onend) {
-    if (!this.supported || !text) return false;
+    if (!text) return false;
+    if (this.aiActive) {
+      this.stop();
+      if (this.ai.speak(text, { speed: this.rate, onend })) return true;
+    }
+    if (!this.supported) return false;
     this.synth.cancel();
     this.pending = 0;
     const u = new SpeechSynthesisUtterance(text);
@@ -51,7 +62,12 @@ export class Speaker {
     return true;
   }
   speak(text) {
-    if (!this.enabled || !this.supported || !text) return;
+    if (!this.enabled || !text) return;
+    if (this.aiActive) {
+      if (this.ai.pending >= this.maxQueue) this.ai.stop(); // 追いつかない時は古いものを飛ばす
+      if (this.ai.speak(text, { speed: this.rate })) return;
+    }
+    if (!this.supported) return;
     if (this.pending >= this.maxQueue) {
       this.synth.cancel();
       this.pending = 0;
@@ -66,12 +82,14 @@ export class Speaker {
   }
   /** iOS は利用者の操作中に一度鳴らさないと以降読み上げない */
   unlock() {
+    this.ai?.unlock();
     if (!this.supported) return;
     const u = new SpeechSynthesisUtterance(' ');
     u.volume = 0;
     this.synth.speak(u);
   }
   stop() {
+    this.ai?.stop();
     this.synth?.cancel();
     this.pending = 0;
   }

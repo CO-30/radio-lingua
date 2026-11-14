@@ -6,6 +6,9 @@
 | 音声認識 | OpenAI Whisper base.en / tiny.en（ONNX版: onnx-community, Xenova） | MIT |
 | 英日翻訳（高品質） | Liquid AI LFM2-350M-ENJP-MT（ONNX版: onnx-community） | LFM Open License v1.0（年商1,000万ドル未満は商用利用無料） |
 | 英日翻訳（省メモリ） | FuguMT en-ja（作者: staka、ONNX版: Kadonox） | CC BY-SA 4.0 |
+| AI音声（任意・設定で選んだときだけ） | Supertone Supertonic 3（声: F2・M1） | BigScience Open RAIL-M（用途制限あり・商用可） |
+
+Supertonic 3 は利用者に Attachment A の用途制限を守ってもらう必要があるため、利用規約 第4条の2 に記載しています。合成した音声は機械生成である旨の明示が必要です。推論の手順は Supertone 社のサンプルコード（MIT License, https://github.com/supertone-inc/supertonic ）に基づき `src/core/supertonic.js` に書き直しています。
 
 FuguMT の翻訳には © staka, CC BY-SA 4.0（https://huggingface.co/staka/fugumt-en-ja ）の表示が必要です。
 

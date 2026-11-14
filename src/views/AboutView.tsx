@@ -91,6 +91,7 @@ export function AboutView({ tab }: { tab: string }) {
               ))}
             </ul>
             <p>FuguMT：© staka, CC BY-SA 4.0（https://huggingface.co/staka/fugumt-en-ja）</p>
+            <p>AI音声（任意）：Supertone Supertonic 3（BigScience Open RAIL-M、https://huggingface.co/Supertone/supertonic-3）。推論手順は Supertone 社のサンプルコード（MIT）に基づきます。AI音声の読み上げは機械で合成した音声です。</p>
           </section>
           <section>
             <h2>ソフトウェア・データ・書体</h2>

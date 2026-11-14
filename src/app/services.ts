@@ -3,6 +3,8 @@ import { WorkerEngine, MockEngine } from '../core/engine.js';
 import { Capture } from '../core/capture.js';
 import { History } from '../core/history.js';
 import { Speaker } from '../core/tts.js';
+import { AiVoice, isVoiceCached } from '../core/aivoice.js';
+import { fileUrl } from '../core/supertonic.js';
 import { ASR_MODELS, MT_MODELS, defaultModelConfig, estimateDownloadMB, isMobileUA } from '../core/models.js';
 import { DEMO_STATION, makeUserStation } from '../core/stations.js';
 import { initState, getState, setState, EMPTY_SESSION, type Session, type Settings, type Station, type Transmission } from './store';
@@ -38,7 +40,7 @@ function loadSettings(): Settings {
   const base: Settings = {
     ...(defaultModelConfig({ webgpu: !!(navigator as any).gpu, mobile: isMobileUA() }) as Pick<Settings, 'asr' | 'mt'>),
     showEn: true,
-    rate: 1.15,
+    rate: 1.0,
     size: 1,
     forceWasm: false,
     autoSpeak: false,
@@ -47,6 +49,7 @@ function loadSettings(): Settings {
     alertKeywords: [],
     alertSound: true,
     alertNotify: false,
+    voice: 'system',
   };
   const saved = readJSON<Partial<Settings> & { tts?: boolean }>(SETTINGS_KEY, {});
   if (saved.tts !== undefined && saved.autoSpeak === undefined) saved.autoSpeak = saved.tts; // v0.2 からの引き継ぎ
@@ -56,6 +59,11 @@ function loadSettings(): Settings {
 const settings = loadSettings();
 export const history = new History(globalThis.localStorage, { persist: settings.saveHistory });
 export const speaker = new Speaker();
+let voiceAllowed = false; // 起動直後の確認が終わるまで、AI音声の取得を始めない
+speaker.ai = new AiVoice({
+  createWorker: () => new Worker(new URL('../worker/tts.worker.js', import.meta.url), { type: 'module' }),
+  onState: (v) => setState({ voice: { ...v } }),
+});
 /** 同時に受信できる局の数（AIは1つを共有するため、増やすと字幕が遅れやすい） */
 export const MAX_SESSIONS = 3;
 const captures = new Map<string, any>();
@@ -74,13 +82,24 @@ initState({
   settings,
   consent: { open: false, mb: 0, asrLabel: '', mtLabel: '' },
   speakingId: null,
+  voice: { status: 'idle', progress: 0, error: null, device: null, rtf: null },
   settingsOpen: false,
   addStationOpen: false,
 });
 applySettings(settings);
+// 起動時は、取得済みのときだけAI音声を準備する（大きな取得は設定で選んだときだけ）
+if (settings.voice !== 'system') {
+  void isVoiceCached(fileUrl('onnx/vector_estimator.onnx')).then((cached) => {
+    voiceAllowed = true;
+    if (cached) speaker.ai!.ensure(settings.voice);
+    else setState({ voice: { ...getState().voice, status: 'idle', error: 'AI音声のデータがこの端末にありません。設定から取得してください。' } });
+  });
+} else voiceAllowed = true;
 
 function applySettings(s: Settings) {
   speaker.rate = s.rate;
+  speaker.useAi = s.voice !== 'system';
+  if (speaker.useAi && voiceAllowed) speaker.ai!.ensure(s.voice);
   speaker.enabled = s.autoSpeak;
   document.documentElement.style.setProperty('--cap-scale', String(s.size));
   document.body.classList.toggle('hide-en', !s.showEn);
@@ -331,6 +350,12 @@ export async function requestNotifyPermission(): Promise<boolean> {
 }
 
 /* ---------- 読み上げ（交信ごと） ---------- */
+/** AI音声のモデルを端末から消し、端末の声に戻す */
+export async function removeAiVoice() {
+  await speaker.ai!.clearCache();
+  updateSettings({ voice: 'system' });
+}
+
 export function toggleSpeak(item: Transmission) {
   if (getState().speakingId === item.id) {
     speaker.stop();
@@ -400,6 +425,7 @@ export function download(name: string, text: string, type: string) {
   get engine() {
     return engine;
   },
+  voice: speaker.ai,
   // 実モデルの精度測定（例: await __rl.bench('samples/demo-dispatch.mp3', [...正解文])）。結果は履歴に混ざらない
   bench: (url: string, expected: string[]) => runBench(engine, new URL(url, location.href).href, expected),
 };

@@ -56,6 +56,16 @@ export interface Settings {
   alertKeywords: string[];
   alertSound: boolean;
   alertNotify: boolean;
+  /** 読み上げの声。system＝端末の声、ai-f / ai-m＝AI音声（初回のみ約400MB取得） */
+  voice: 'system' | 'ai-f' | 'ai-m';
+}
+
+export interface VoiceState {
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  progress: number;
+  error: string | null;
+  device: string | null;
+  rtf: number | null;
 }
 
 /** 局ごとの受信状態（同時受信に対応） */
@@ -80,6 +90,7 @@ export interface AppState {
   settings: Settings;
   consent: { open: boolean; mb: number; asrLabel: string; mtLabel: string };
   speakingId: string | null;
+  voice: VoiceState;
   settingsOpen: boolean;
   addStationOpen: boolean | string; // 文字列＝国を指定して開く
 }

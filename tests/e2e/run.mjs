@@ -145,6 +145,20 @@ async function run(name, contextOpts, mobile) {
   await page.waitForTimeout(200);
   check(!(await page.locator('.tx-en').first().isVisible()), '設定で英語の原文を隠せる');
 
+  // 6b. AI音声：取得できないときは理由を表示し、端末の声で読み上げを続ける（テストでは取得を止める）
+  await page.context().route(/supertonic-3/, (r) => r.abort());
+  await page.click('.topbar .icon-btn');
+  await page.waitForSelector('#settings-title');
+  await page.locator('dialog[open] .option', { hasText: 'AI音声（女性）' }).click();
+  await page.click('dialog[open] button[type=submit]');
+  await page.waitForFunction(() => window.__rl.getState().voice.status === 'error', null, { timeout: 15000 });
+  await page.click('.topbar .icon-btn');
+  await page.waitForSelector('#settings-title');
+  check((await page.locator('dialog[open] .voice-status').textContent()).includes('端末の声で読み上げます'), 'AI音声を準備できないときは理由と代わりの動作を表示');
+  await page.locator('dialog[open] .option', { hasText: '端末の声' }).click();
+  await page.click('dialog[open] button[type=submit]');
+  check(await page.evaluate(() => window.__rl.getState().settings.voice === 'system'), '端末の声に戻せる');
+
   // 7. 再読み込みしても残る
   await page.reload();
   await page.waitForSelector('.tx');

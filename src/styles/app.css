@@ -1810,3 +1810,12 @@ h3 {
     transition: none !important;
   }
 }
+
+/* 読み上げの声：準備状況 */
+.voice-status {
+  margin: 6px 0 4px;
+  color: var(--muted);
+}
+.voice-status.is-warn {
+  color: var(--amber);
+}
