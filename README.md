@@ -6,7 +6,7 @@
 - 公開URL：https://co-30.github.io/radio-lingua/
 - 対応：PC（Chrome・Edge・Safari・Firefox）／スマートフォン（iPhone Safari・Android Chrome）
 
-## できること（v1.2）
+## できること（v1.3）
 - 世界地図（点描）で受信状況を見渡し、国・局を選んでライブ翻訳へ
 - 5画面：地図／無線局／ライブ翻訳／お気に入り／履歴（PCは縦メニュー、スマホは下部メニュー）
 - 英語の無線音声を交信ごとに区切って文字起こし（Whisper）。聞き取りが不確かな語を確信度で明示
@@ -14,6 +14,7 @@
 - 10コード（10-4 など）や code 4 の意味を併記
 - 日本語の読み上げ（交信ごと・自動）、重要な交信の☆、局のお気に入り
 - キーワード通知（「structure fire」「火災」などを含む交信を強調・通知音・端末通知）
+- 複数の局を同時に受信（最大3局）
 - お手持ちの受信機（マイク）・タブ音声・配信URLを局として追加
 - ホーム画面に追加してアプリのように使える（PWA）。圏外でも画面は開く
 - アプリ内に「このアプリについて」・利用規約（案）・プライバシーポリシー（案）・ライセンス
@@ -32,6 +33,9 @@ npm run build && npm run test:e2e   # 画面の通しテスト（Chrome使用、
 URL に `?engine=mock` を付けると、AIモデルをダウンロードせずに画面の動作を確認できます。
 
 ## 資料
+- 完成判定の確認書：[docs/COMPLETION.md](docs/COMPLETION.md)
+- 変更履歴：[CHANGELOG.md](CHANGELOG.md)
+- 品質監査（Lighthouse）：[docs/QUALITY.md](docs/QUALITY.md)
 - 操作マニュアル：[docs/MANUAL.md](docs/MANUAL.md)
 - 技術構成資料：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - 商用販売に向けた改善提案：[docs/COMMERCIAL.md](docs/COMMERCIAL.md)

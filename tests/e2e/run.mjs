@@ -3,7 +3,10 @@
 // 実行: npm run build && npm run test:e2e
 import { chromium } from 'playwright-core';
 import { preview } from 'vite';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, mkdtempSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import https from 'node:https';
 
 const CHROME = process.env.CHROME_PATH || '/usr/bin/google-chrome';
 const OUT = new URL('./out/', import.meta.url).pathname;
@@ -223,8 +226,58 @@ async function runOffline() {
   await ctx.close();
 }
 
+/**
+ * 利用者が追加した「配信URL」の局：本番ビルドのCSPの下で https の配信を取り込み、翻訳まで届くか。
+ * 自己署名の https サーバー（取り込み許可あり／なし）を立てて確認する。openssl がない環境では省略。
+ */
+async function runStream() {
+  console.log('\n== stream ==');
+  let dir;
+  try {
+    dir = mkdtempSync(`${tmpdir()}/rl-https-`);
+    execSync(`openssl req -x509 -newkey rsa:2048 -nodes -keyout ${dir}/key.pem -out ${dir}/cert.pem -days 1 -subj /CN=localhost`, { stdio: 'ignore' });
+  } catch {
+    console.log('（openssl がないため省略）');
+    return;
+  }
+  const body = readFileSync(new URL('../../public/samples/demo-dispatch.mp3', import.meta.url));
+  const srv = https
+    .createServer({ key: readFileSync(`${dir}/key.pem`), cert: readFileSync(`${dir}/cert.pem`) }, (req, res) => {
+      const cors = !req.url.includes('nocors');
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': body.length, ...(cors ? { 'Access-Control-Allow-Origin': '*' } : {}) });
+      res.end(body);
+    })
+    .listen(8443);
+  const b2 = await chromium.launch({ executablePath: CHROME, args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox', '--ignore-certificate-errors'] });
+  const page = await (await b2.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
+  const csp = [];
+  page.on('console', (m) => /Content Security Policy/.test(m.text()) && csp.push(m.text()));
+  const run1 = async (id, url) => {
+    await page.goto(`${base}#/stations`);
+    await page.evaluate(
+      ([id, url]) => localStorage.setItem('radiolingua.stations.v1', JSON.stringify([{ id, name: '配信テスト', country: 'US', region: '', lat: 40, lon: -100, types: ['fire'], kind: 'user', input: 'stream', url, status: 'available', note: '' }])),
+      [id, url],
+    );
+    await page.goto(`${base}#/live/${id}`);
+    await page.reload();
+    await page.click('.live-controls .btn-primary');
+    await page.waitForFunction((id) => window.__rl.getState().sessions[id]?.running || window.__rl.getState().sessions[id]?.notice, id, { timeout: 20000 }).catch(() => {});
+    await page.waitForFunction((id) => !window.__rl.getState().sessions[id]?.running, id, { timeout: 70000 }).catch(() => {});
+    await page.waitForTimeout(600);
+    return { n: await page.locator('.tx-list .tx:not(.tx-pending)').count(), notice: await page.evaluate((id) => window.__rl.getState().sessions[id]?.notice, id) };
+  };
+  const ok = await run1('u-stream', 'https://localhost:8443/demo.mp3');
+  check(ok.n === 6, `配信URL（https）の音声を取り込んで翻訳できる（${ok.n}件）`);
+  check(csp.length === 0, `配信の再生がセキュリティ設定（CSP）で遮断されない${csp.length ? `: ${csp[0]}` : ''}`);
+  const ng = await run1('u-stream2', 'https://localhost:8443/nocors.mp3');
+  check(ng.n === 0 && /配信に接続できませんでした/.test(ng.notice || ''), '取り込みを許可していない配信は分かりやすく案内する');
+  await b2.close();
+  srv.close();
+}
+
 try {
   await runOffline();
+  await runStream();
   await run('desktop', { viewport: { width: 1440, height: 900 } }, false);
   await run('mobile', { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' }, true);
 } finally {

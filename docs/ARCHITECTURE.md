@@ -5,7 +5,7 @@
 [利用者の端末（ブラウザ）]
  ├─ 画面（React + TypeScript）  地図 / 無線局 / ライブ翻訳 / お気に入り / 履歴 / このアプリについて
  │    └─ 状態管理 src/app/store.ts ・ 操作 src/app/services.ts
- ├─ 音声の取り込み src/core/capture.js
+ ├─ 音声の取り込み src/core/capture.js（局ごとに1つ。最大3局を同時に受信。AIエンジンは共有し、交信ごとに局を追跡）
  │    デモ音声・録音ファイル・マイク（受信機）・タブ音声・配信URL
 │    音声処理専用スレッド（AudioWorklet、src/core/capture-worklet.js）。使えない環境は ScriptProcessor
  │    → 16kHz化 src/core/resample.js → 交信の区切り src/core/segmenter.js
@@ -46,7 +46,8 @@
 | 配信 | GitHub Pages + GitHub Actions | 無料。テスト通過時のみ自動公開 |
 
 ## 品質の仕組み
-- push ごとに GitHub Actions で：単体テスト → ビルド → 画面通しテスト（Chrome、PC/スマホ幅、圏外起動）→ 公開
+- push ごとに GitHub Actions で：単体テスト → ビルド → 画面通しテスト（Chrome、PC/スマホ幅、圏外起動、https 配信の取り込み、同時受信）→ 公開
+- 品質監査（Lighthouse）：docs/QUALITY.md
 - 実モデル精度測定（Whisper + 翻訳を CPU で実行し WER を記録）を自動実行 → `docs/benchmarks/latest.md`
 - AIモデルは版（コミットID）を固定し、更新時は精度測定で確認してから切り替える
 

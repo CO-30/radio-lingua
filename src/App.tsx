@@ -75,13 +75,13 @@ export function App() {
         本文へ移動
       </a>
       <nav className="rail" aria-label="メインメニュー">
-        <a className="brand" href="#/map" aria-label="RADIO LINGUA 地図へ">
+        <a className="brand" href="#/map" aria-label="RADIO LINGUA（地図へ）">
           <svg viewBox="0 0 32 32" aria-hidden="true" className="brand-glyph">
             <circle cx="16" cy="16" r="3" />
             <path d="M9.5 9.5a9.2 9.2 0 000 13M22.5 9.5a9.2 9.2 0 010 13M5.4 5.4a15 15 0 000 21.2M26.6 5.4a15 15 0 010 21.2" />
           </svg>
           <span className="brand-word">
-            RADIO<b>LINGUA</b>
+            RADIO <b>LINGUA</b>
           </span>
         </a>
         <ul className="nav">
@@ -107,9 +107,9 @@ export function App() {
       </nav>
       <div className="frame">
         <header className="topbar">
-          <a className="brand brand-mobile" href="#/map" aria-label="RADIO LINGUA 地図へ">
+          <a className="brand brand-mobile" href="#/map" aria-label="RADIO LINGUA（地図へ）">
             <span className="brand-word">
-              RADIO<b>LINGUA</b>
+              RADIO <b>LINGUA</b>
             </span>
           </a>
           <Clock />

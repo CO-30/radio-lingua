@@ -73,6 +73,8 @@ export function WorldMap({ stations, selectedCountry, selectedStation, liveStati
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ d: number; v: View } | null>(null);
   const suppressClick = useRef(false);
+  const laidOut = useRef(false); // 実際の大きさで一度表示したか
+  const lastSelection = useRef('');
 
   const stationCountries = useMemo(() => new Set(stations.map((s) => countryIndex(s.country))), [stations]);
   const pendingIdx = useMemo(() => new Set([...pendingCountries].map(countryIndex)), [pendingCountries]);
@@ -80,9 +82,19 @@ export function WorldMap({ stations, selectedCountry, selectedStation, liveStati
 
   useEffect(() => {
     const el = wrapRef.current!;
-    const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight }));
+    // 大きさの変化は1フレームにまとめ、実際に変わったときだけ描き直す
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() =>
+        setSize((cur) => (Math.abs(cur.w - el.clientWidth) < 1 && Math.abs(cur.h - el.clientHeight) < 1 ? cur : { w: el.clientWidth, h: el.clientHeight })),
+      );
+    });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
   }, []);
 
   // 国を選ぶとその国へ寄る（なめらかに）
@@ -91,8 +103,18 @@ export function WorldMap({ stations, selectedCountry, selectedStation, liveStati
     const target = fitView((selectedCountry && countryView(selectedCountry)) || defaultView(aspect, stations), aspect);
     const from = fitView(viewRef.current, aspect);
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // 初回表示・画面サイズの変更では動かさない（国を選んだとき・戻したときだけなめらかに寄る）
+    const animate = !reduce && laidOut.current && lastSelection.current !== `${selectedCountry}|${resetKey}`;
+    laidOut.current = size.w !== 800 || size.h !== 400;
+    lastSelection.current = `${selectedCountry}|${resetKey}`;
+    const same = Math.abs(from.x - target.x) + Math.abs(from.y - target.y) + Math.abs(from.w - target.w) < 0.5;
+    if (!animate || same) {
+      viewRef.current = target;
+      setView(target);
+      return;
+    }
     const t0 = performance.now();
-    const dur = reduce ? 0 : 650;
+    const dur = 650;
     let raf = 0;
     const step = (t: number) => {
       const k = dur ? Math.min(1, (t - t0) / dur) : 1;

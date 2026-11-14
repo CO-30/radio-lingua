@@ -1,6 +1,6 @@
-# セキュリティ監査（2026-11-14）
+# セキュリティ監査（2026-11-14・v1.3で再監査）
 
-対象：RADIO LINGUA v0.2（https://co-30.github.io/radio-lingua/ ）
+対象：RADIO LINGUA v1.3（https://co-30.github.io/radio-lingua/ ）
 
 ## 結論
 重大な問題はありません。サーバーを持たない静的サイトで、利用者の音声・字幕・履歴は端末の外に出ません。
@@ -15,7 +15,7 @@
 | 通信先 | 自サイト（GitHub Pages）と Hugging Face（モデル取得）のみ | 実ブラウザで通信先を確認。CSPの `connect-src` でも制限 |
 | 利用者データの送信 | なし | 音声認識・翻訳はブラウザ内（Web Worker）で実行。履歴は localStorage のみ |
 | 端末の権限 | マイク・画面共有は、利用者が該当ボタンを押したときだけ要求 | コード確認 |
-| 利用者が追加した配信URL | https のみ受け付け。権利確認のチェックを必須化 | 単体テスト・画面テスト |
+| 利用者が追加した配信URL | https のみ受け付け。権利確認のチェックを必須化。CSP の media-src は https のみ許可 | 単体テスト・画面テスト（https 配信での実再生） |
 | AIモデルの改ざん・すり替え | 版（コミットID）を固定 | `src/core/models.js` の `REVISIONS` |
 | 実行環境（ONNX Runtime）の配信 | 自サイトから配信（外部CDNに依存しない） | `scripts/copy-ort.mjs` |
 | 外部の地図・書体サービス | 使用しない（地図データ・書体とも自前配信） | ビルド設定（data: 埋め込みも禁止） |
@@ -27,10 +27,19 @@
 ## コンテンツセキュリティポリシー（本番ビルドに自動付与）
 ```
 default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self';
-img-src 'self' data:; font-src 'self'; media-src 'self' blob:;
+img-src 'self' data:; font-src 'self'; media-src 'self' blob: https:;
 connect-src 'self' blob: data: https://huggingface.co https://*.huggingface.co https://*.hf.co;
 object-src 'none'; base-uri 'self'; form-action 'self'
 ```
+
+## v1.3 再監査で見つけて直したこと
+| 内容 | 影響 | 対策と確認 |
+|---|---|---|
+| 利用者が追加した「配信URL」の音声が、CSP（media-src 'self' blob:）で遮断されていた | 配信URLの局がまったく使えなかった | media-src に https: を追加（受け付けるURLは https のみ）。自己署名の https 配信を立てる画面通しテストを追加し、修正前は遮断・修正後は6交信すべて翻訳されることを確認 |
+| 配信に接続できないとき英語の技術的なエラーがそのまま表示された | 利用者が対処できない | 原因（URL・CORS）が分かる日本語の案内に変更（テストで確認） |
+
+追加機能の確認：AudioWorklet（自サイトから配信、CSPの script-src 'self' の範囲で動作）、端末の通知（利用者がオンにしたときだけ許可を求め、通信はしない）、
+複数局の同時受信（局ごとに取り込み口を分離、AIエンジンは共有）。依存パッケージの脆弱性 0件（npm audit、本番・開発とも）。
 
 ## 残るリスクと対策予定
 | リスク | 影響 | 対策 |

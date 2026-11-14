@@ -114,7 +114,12 @@ export class Capture extends EventTarget {
    * 配信側が外部からの取り込み（CORS）を許可していないと、ブラウザは無音しか渡さないので検出して知らせる。
    */
   async startStream(url) {
-    await this.startMedia(url, { label: '配信' });
+    try {
+      await this.startMedia(url, { label: '配信' });
+    } catch (e) {
+      await this.stop();
+      throw new Error('配信に接続できませんでした。URLが正しいか、配信元が外部からの取り込み（CORS）を許可しているかを確認してください。');
+    }
     clearTimeout(this.silenceTimer);
     this.silenceTimer = setTimeout(() => {
       if (this.running && this.mediaEl && !this.mediaEl.paused && this.maxLevel < 0.0005) {

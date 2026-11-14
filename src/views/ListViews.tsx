@@ -59,6 +59,7 @@ export function StationsView() {
           ))}
         </select>
       </div>
+      <h2 className="visually-hidden">受信できる局</h2>
       {list.length ? (
         <div className="station-grid">
           {list.map((s) => (

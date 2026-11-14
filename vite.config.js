@@ -10,7 +10,8 @@ const CSP = [
   "style-src 'self'",
   "img-src 'self' data:",
   "font-src 'self'",
-  "media-src 'self' blob:",
+  // 利用者が追加した配信URL（https のみ受け付け）の音声を再生できるようにする
+  "media-src 'self' blob: https:",
   "connect-src 'self' blob: data: https://huggingface.co https://*.huggingface.co https://*.hf.co",
   "object-src 'none'",
   "base-uri 'self'",
