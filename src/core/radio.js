@@ -63,7 +63,7 @@ const UNIT_TYPES = [
   { re: /\bunit/i, en: 'Unit', ja: 'ユニット', kind: 'police' },
   { re: /\bcar/i, en: 'Patrol Car', ja: 'パトカー', kind: 'police' },
 ];
-const UNIT_RE = new RegExp(`(?<!Fire |Ladder |Patrol )\\b(Engine|Ladder|Truck|Battalion|Rescue|Squad|Medic|Ambulance|Unit|Car)\\s+(\\d{1,4}|${NUM_WORD_RE}(?:[\\s-]${NUM_WORD_RE})?)\\b`, 'gi');
+const UNIT_RE = new RegExp(`(?<!Fire |Ladder |Patrol )\\b(Engine|Ladder|Truck|Battalion|Rescue|Squad|Medic|Ambulance|Unit|Car)s?\\s+(\\d{1,4}|${NUM_WORD_RE}(?:[\\s-]${NUM_WORD_RE})?)\\b`, 'gi');
 
 /**
  * 翻訳前の英文を整える。
@@ -72,7 +72,7 @@ const UNIT_RE = new RegExp(`(?<!Fire |Ladder |Patrol )\\b(Engine|Ladder|Truck|Ba
 export function normalizeRadioText(input) {
   let text = ` ${input} `.replace(/\s+/g, ' ');
   // Whisper がよく聞き違える無線用語
-  text = text.replace(/\b(and|in|on) route\b/gi, 'en route').replace(/\bcopies and route\b/gi, 'copies en route');
+  text = text.replace(/\b(and|in|on|en) (route|root|rout)\b/gi, 'en route');
   const codes = [];
   const units = [];
 

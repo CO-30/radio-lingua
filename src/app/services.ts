@@ -220,7 +220,8 @@ capture.addEventListener('segment', (ev: any) => {
   liveIds.add(id);
   setState((st) => {
     const pending = st.live.pending + 1;
-    const notice = pending >= 3 ? 'AIの処理が音声に追いついていません。字幕が遅れる場合は、設定で音声認識を「標準」または「軽量」にしてください。' : st.live.notice;
+    const tip = st.settings.asr === 'accurate' ? '設定で音声認識を「標準」にしてください' : st.settings.asr === 'standard' ? '設定で音声認識を「軽量」にするか、他のアプリを閉じてください' : '他のアプリやタブを閉じると改善することがあります';
+    const notice = pending >= 3 ? `AIの処理が音声に追いついていません。字幕が遅れる場合は、${tip}。` : st.live.notice;
     return { live: { ...st.live, pending, notice } };
   });
 });

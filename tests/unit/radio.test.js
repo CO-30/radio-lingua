@@ -124,6 +124,8 @@ describe('buildCaption', () => {
     expect((await buildCaption('10-4.', mt)).ja).toBe('了解。');
     expect((await buildCaption('Engine 12 copies en route.', mt)).ja).toBe('消防車12、了解、現場へ向かう。');
     expect((await buildCaption('Engine 12 copies and route.', mt)).ja).toBe('消防車12、了解、現場へ向かう。');
+    expect((await buildCaption('Engine 12 copies and root.', mt)).ja).toBe('消防車12、了解、現場へ向かう。');
+    expect((await buildCaption('Medics 7, priority 1 call.', mt)).ja).toBe('救急車7、最優先の出動要請。');
     expect((await buildCaption('Medic 7 responding.', mt)).ja).toBe('救急車7、出動する。');
     expect((await buildCaption('Medic 7, priority 1 call.', mt)).ja).toBe('救急車7、最優先の出動要請。');
     expect((await buildCaption('10-4-23 is on scene.', mt)).ja).toBe('了解。23、現着。');
