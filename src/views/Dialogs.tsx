@@ -34,7 +34,10 @@ function VoiceFieldset({ value, onChange }: { value: Settings['voice']; onChange
   let status = '';
   if (saved !== 'system') {
     if (v.status === 'loading') status = `AI音声を準備中… ${Math.round(v.progress * 100)}%（準備ができるまでは端末の声で読みます）`;
-    else if (v.status === 'ready') status = `AI音声を使用中（${v.device === 'webgpu' ? 'GPU' : 'CPU'}・${v.rtf != null && v.rtf > 0.9 ? '処理が重く、読み上げが遅れることがあります' : '問題なく動作'}）`;
+    else if (v.status === 'ready')
+      status = `AI音声を使用中（${v.device === 'webgpu' ? 'GPU' : 'CPU'}${
+        v.rtf == null ? '' : v.rtf > 1 ? '・この端末では処理が重く、読み上げが遅れます。遅れが気になる場合は端末の声を選んでください' : v.steps && v.steps < 8 ? '・速さを優先して音質を少し下げています' : '・問題なく動作'
+      }）`;
     else if (v.status === 'error') status = `AI音声を準備できませんでした：${v.error}。端末の声で読み上げます。`;
     else if (v.error) status = v.error;
   }

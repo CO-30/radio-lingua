@@ -123,3 +123,27 @@ describe('AI音声：再生の管理', () => {
     expect(v.state.status).toBe('error');
   });
 });
+
+describe('AI音声：処理の重い端末では手順数を自動で減らす', () => {
+  it('遅れると 8→6→5→4、余裕があれば戻す', () => {
+    const v = new AiVoice({ createWorker: () => ({ postMessage() {} }), AudioCtx: null });
+    const feed = (rtf) => {
+      const seq = ++v.seq;
+      v.stepsBySeq.set(seq, v.steps);
+      v._adapt(seq, rtf * 3000, 3);
+    };
+    feed(2.5);
+    expect(v.steps).toBe(6);
+    feed(1.6);
+    expect(v.steps).toBe(5);
+    feed(1.2);
+    expect(v.steps).toBe(4);
+    feed(1.1);
+    expect(v.steps).toBe(4); // これ以上は下げない
+    feed(0.2);
+    expect(v.steps).toBe(4); // 1回だけ速くても戻さない（平均で判断）
+    feed(0.2);
+    feed(0.2);
+    expect(v.steps).toBe(5);
+  });
+});

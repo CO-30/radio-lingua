@@ -14,6 +14,7 @@ export async function isVoiceCached(url) {
 }
 
 export class AiVoice {
+  static STEPS = [8, 6, 5, 4];
   /** @param {{ createWorker: () => Worker, onState?: (s: any) => void, AudioCtx?: any }} opts */
   constructor({ createWorker, onState = () => {}, AudioCtx = globalThis.AudioContext || globalThis.webkitAudioContext } = {}) {
     this.createWorker = createWorker;
@@ -28,6 +29,24 @@ export class AiVoice {
     this.ctx = null;
     this.playEnd = 0;
     this.sources = new Set();
+    this.steps = 8; // 処理が追いつかない端末では自動で減らす（品質より遅れを優先して防ぐ）
+    this.stepsBySeq = new Map();
+    this.rtfAvg = null;
+  }
+  /** 実際の読み上げにかかった時間から、次の手順数を決める */
+  _adapt(seq, ms, duration) {
+    const used = this.stepsBySeq.get(seq);
+    this.stepsBySeq.delete(seq);
+    if (!used || !duration) return;
+    const rtf = ms / 1000 / duration;
+    this.rtfAvg = this.rtfAvg == null ? rtf : this.rtfAvg * 0.6 + rtf * 0.4;
+    if (used !== this.steps) return;
+    const ladder = AiVoice.STEPS;
+    const i = ladder.indexOf(this.steps);
+    if (this.rtfAvg > 0.9 && i < ladder.length - 1) this.steps = ladder[i + 1];
+    else if (this.rtfAvg < 0.45 && i > 0) this.steps = ladder[i - 1];
+    else return;
+    this.rtfAvg = null; // 手順数を変えたら測り直す
   }
   get ready() {
     return this.state.status === 'ready';
@@ -54,9 +73,13 @@ export class AiVoice {
   }
   _onMessage(m) {
     if (m.type === 'progress') this._set({ progress: m.progress });
-    else if (m.type === 'ready') this._set({ status: 'ready', progress: 1, device: m.device, rtf: m.rtf });
+    else if (m.type === 'ready') this._set({ status: 'ready', progress: 1, device: m.device, rtf: null });
     else if (m.type === 'error') this._set({ status: 'error', error: m.error });
-    else if (m.type === 'audio') this._play(m.seq, m.pcm, m.sampleRate);
+    else if (m.type === 'audio') {
+      this._adapt(m.seq, m.ms, m.duration);
+      this._set({ rtf: this.rtfAvg == null ? this.state.rtf : +this.rtfAvg.toFixed(2), steps: this.steps });
+      this._play(m.seq, m.pcm, m.sampleRate);
+    }
     else if (m.type === 'skipped' || m.type === 'speak-error') this._finishPart(m.seq);
   }
   unlock() {
@@ -77,7 +100,8 @@ export class AiVoice {
     for (const p of parts) {
       const seq = ++this.seq;
       this.bySeq.set(seq, u);
-      this.worker.postMessage({ type: 'speak', seq, text: p, voice: this.voice, speed });
+      this.stepsBySeq.set(seq, this.steps);
+      this.worker.postMessage({ type: 'speak', seq, text: p, voice: this.voice, speed, steps: this.steps });
     }
     return true;
   }

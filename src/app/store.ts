@@ -66,6 +66,7 @@ export interface VoiceState {
   error: string | null;
   device: string | null;
   rtf: number | null;
+  steps?: number;
 }
 
 /** 局ごとの受信状態（同時受信に対応） */
