@@ -1,0 +1,191 @@
+{
+  "date": "2026-11-14T10:10:32.259Z",
+  "commit": "7cafe692c39f63e3f9811fcdd79ad807e08ace39",
+  "segments": 6,
+  "expected": 6,
+  "results": [
+    {
+      "asr": "onnx-community/whisper-base.en (q8)",
+      "mt": "onnx-community/LFM2-350M-ENJP-MT-ONNX (q4)",
+      "wer": 0.32,
+      "rows": [
+        {
+          "ref": "Dispatch to Engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross street is Oak Drive.",
+          "en": "Dispatch to engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross street remote drive.",
+          "ja": "消防車12号へ出動願います。メープルアベニュー421番地で発生した構造物の火災の報告に応じる。交差点のリモートドライブ。",
+          "wer": 0.105,
+          "asrMs": 960,
+          "mtMs": 1287,
+          "sec": 8.3
+        },
+        {
+          "ref": "Engine 12 copies. En route.",
+          "en": "And get well copied, unroot.",
+          "ja": "そして完治して根を抜かずして 取り戻せ。",
+          "wer": 1,
+          "asrMs": 750,
+          "mtMs": 401,
+          "sec": 3
+        },
+        {
+          "ref": "Medic 7, priority one call. 65 year old male with chest pain at the Riverside shopping center.",
+          "en": "Medic Salmon, priority 1 call 65-year-old male with chest pain at the reverse eye chopping tender",
+          "ja": "メディックスアルマトウミスールム」、優先順位1「コール65才の男性、胸痛を訴える逆眼切開性胸部痛症男性。",
+          "wer": 0.353,
+          "asrMs": 964,
+          "mtMs": 1070,
+          "sec": 7.8
+        },
+        {
+          "ref": "Medic 7 responding. ETA 6 minutes.",
+          "en": "Magic 7 responding, 86 minutes.",
+          "ja": "マジック7応答 86分後。",
+          "wer": 0.5,
+          "asrMs": 747,
+          "mtMs": 335,
+          "sec": 3.9
+        },
+        {
+          "ref": "Unit 23, traffic stop on Highway 9 southbound near mile marker 40. Silver sedan, 2 occupants.",
+          "en": "Unit 23, traffic stop on highway 9 southbound near mile marker 4D, Silver Civan, 2makjupint.",
+          "ja": "ユニット23、マイル4D付近のハイウェイ9号線南行きの信号で、9号線を止めて、4Dマイルの近くにいる場所だ、シルバー・シベン、2マクジュピント。",
+          "wer": 0.25,
+          "asrMs": 996,
+          "mtMs": 1191,
+          "sec": 8.3
+        },
+        {
+          "ref": "10-4. 23 is on scene. Code 4, no further assistance needed.",
+          "en": "10-4. When the 3-1 scene. Code 4. No further assistance needed.",
+          "ja": "了解。3-1の場面では、いつかあの3つの1の場面が起こるとき。応援不要。",
+          "wer": 0.333,
+          "asrMs": 898,
+          "mtMs": 605,
+          "sec": 6
+        }
+      ]
+    },
+    {
+      "asr": "onnx-community/whisper-small.en (q8)",
+      "mt": "onnx-community/LFM2-350M-ENJP-MT-ONNX (q4)",
+      "wer": 0.16,
+      "rows": [
+        {
+          "ref": "Dispatch to Engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross street is Oak Drive.",
+          "en": "Dispatch to engine 12. Respond to reported structure fire at 421 Maple Avenue. Cross-street emote drive.",
+          "ja": "消防車12号へ出動願います。メープルアベニュー421番地で発生した構造火災の報告に応じる。交差点のエモートドライブ。",
+          "wer": 0.158,
+          "asrMs": 2306,
+          "mtMs": 1282,
+          "sec": 8.3
+        },
+        {
+          "ref": "Engine 12 copies. En route.",
+          "en": "Engine 12 copies en route.",
+          "ja": "消防車12、代理が途中まわりに写しを取ってます\"。",
+          "wer": 0,
+          "asrMs": 1869,
+          "mtMs": 427,
+          "sec": 3
+        },
+        {
+          "ref": "Medic 7, priority one call. 65 year old male with chest pain at the Riverside shopping center.",
+          "en": "Medic salmon, priority one call. 65 year old male with chest pain at the Riverside shopping center.",
+          "ja": "“メディックサーモン”.、最優先の出動要請。リバーサイド・ショッピングセンターで胸の痛みに苦しむ65歳の男性。",
+          "wer": 0.059,
+          "asrMs": 2153,
+          "mtMs": 856,
+          "sec": 7.8
+        },
+        {
+          "ref": "Medic 7 responding. ETA 6 minutes.",
+          "en": "Medic salmon responding. It's in 6 minutes.",
+          "ja": "メディックサーモン応答中。あと6分だ。",
+          "wer": 0.5,
+          "asrMs": 1988,
+          "mtMs": 491,
+          "sec": 3.9
+        },
+        {
+          "ref": "Unit 23, traffic stop on Highway 9 southbound near mile marker 40. Silver sedan, 2 occupants.",
+          "en": "Unit 23, traffic stop on highway 9, southbound near mile marker 40. Silver sedan, two occupants.",
+          "ja": "ユニット23、ハイウェイ9号線、40マイル地点近くの南行き、40マイル地点付近で交通検問所だ。銀色のセダン、乗車者2名。",
+          "wer": 0.063,
+          "asrMs": 2283,
+          "mtMs": 1182,
+          "sec": 8.3
+        },
+        {
+          "ref": "10-4. 23 is on scene. Code 4, no further assistance needed.",
+          "en": "10-4. When the freedom's seen, code 4, no further assistance needed.",
+          "ja": "了解。自由が認められるようになると、応援不要。",
+          "wer": 0.333,
+          "asrMs": 2205,
+          "mtMs": 236,
+          "sec": 6
+        }
+      ]
+    },
+    {
+      "asr": "onnx-community/whisper-base.en (q8)",
+      "mt": "Kadonox/fugumt-en-ja-onnx (q8)",
+      "wer": 0.32,
+      "rows": [
+        {
+          "ref": "Dispatch to Engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross street is Oak Drive.",
+          "en": "Dispatch to engine 12. Respond to a reported structure fire at 421 Maple Avenue. Cross street remote drive.",
+          "ja": "消防車第12号へ発送。421メープル通りで報告された火災に対応します。クロスストリートリモートドライブ。",
+          "wer": 0.105,
+          "asrMs": 856,
+          "mtMs": 428,
+          "sec": 8.3
+        },
+        {
+          "ref": "Engine 12 copies. En route.",
+          "en": "And get well copied, unroot.",
+          "ja": "よくコピーして解き放て。",
+          "wer": 1,
+          "asrMs": 798,
+          "mtMs": 95,
+          "sec": 3
+        },
+        {
+          "ref": "Medic 7, priority one call. 65 year old male with chest pain at the Riverside shopping center.",
+          "en": "Medic Salmon, priority 1 call 65-year-old male with chest pain at the reverse eye chopping tender",
+          "ja": "痛を主訴に来院した65歳男性を優先的に治療した医療用サーモン。",
+          "wer": 0.353,
+          "asrMs": 971,
+          "mtMs": 300,
+          "sec": 7.8
+        },
+        {
+          "ref": "Medic 7 responding. ETA 6 minutes.",
+          "en": "Magic 7 responding, 86 minutes.",
+          "ja": "マジック 7 応答、 86 分。",
+          "wer": 0.5,
+          "asrMs": 821,
+          "mtMs": 122,
+          "sec": 3.9
+        },
+        {
+          "ref": "Unit 23, traffic stop on Highway 9 southbound near mile marker 40. Silver sedan, 2 occupants.",
+          "en": "Unit 23, traffic stop on highway 9 southbound near mile marker 4D, Silver Civan, 2makjupint.",
+          "ja": "ユニット23、マイルマーカ4D近くの南行きの高速道路の交通停止、シルバー・シヴァン、2人組。",
+          "wer": 0.25,
+          "asrMs": 1055,
+          "mtMs": 331,
+          "sec": 8.3
+        },
+        {
+          "ref": "10-4. 23 is on scene. Code 4, no further assistance needed.",
+          "en": "10-4. When the 3-1 scene. Code 4. No further assistance needed.",
+          "ja": "了解。3-1シーン。応援不要。",
+          "wer": 0.333,
+          "asrMs": 935,
+          "mtMs": 151,
+          "sec": 6
+        }
+      ]
+    }
+  ]
+}
