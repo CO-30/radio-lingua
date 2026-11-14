@@ -2,6 +2,13 @@
 // モデルを追加・差し替えるときはここだけを編集する。
 
 export const ASR_MODELS = {
+  accurate: {
+    id: 'onnx-community/whisper-small.en',
+    fallbacks: ['Xenova/whisper-small.en'],
+    label: '高精度（Whisper small）',
+    approxMB: 250,
+    license: 'MIT',
+  },
   standard: {
     id: 'onnx-community/whisper-base.en',
     fallbacks: ['Xenova/whisper-base.en'],
@@ -23,7 +30,7 @@ export const MT_MODELS = {
     id: 'onnx-community/LFM2-350M-ENJP-MT-ONNX',
     kind: 'chat',
     label: '高品質（LFM2 英日翻訳）',
-    approxMB: 300,
+    approxMB: 420,
     license: 'LFM Open License v1.0（年商1,000万ドル未満は商用無料）',
   },
   fugu: {

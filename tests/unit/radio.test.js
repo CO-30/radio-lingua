@@ -4,8 +4,8 @@ import { normalizeRadioText, classify, isLikelyHallucination, cleanAsrText, buil
 describe('normalizeRadioText', () => {
   it('10コードを意味に置き換え、元のコードを記録する', () => {
     const r = normalizeRadioText('Ten four, twenty three is 10-97.');
-    expect(r.text).toContain('acknowledged');
-    expect(r.text).toContain('arrived on scene');
+    expect(r.text).toContain('Roger');
+    expect(r.text).toContain('on scene');
     expect(r.codes.map((c) => c.code)).toEqual(['10-4', '10-97']);
     expect(r.codes[0].ja).toBe('了解');
   });
@@ -31,9 +31,18 @@ describe('normalizeRadioText', () => {
     expect(r.text).toContain('Fire Engine 12');
     expect(r.text).toContain('Ambulance 7');
     expect(r.units).toEqual([
-      { label: 'Engine 12', ja: '消防車12', kind: 'fire' },
-      { label: 'Medic 7', ja: '救急車7', kind: 'ems' },
+      { label: 'Engine 12', en: 'Fire Engine 12', ja: '消防車12', kind: 'fire' },
+      { label: 'Medic 7', en: 'Ambulance 7', ja: '救急車7', kind: 'ems' },
     ]);
+  });
+
+  it('二重に正規化しても部隊名が重ならない', () => {
+    const once = normalizeRadioText('Engine 12 copies').text;
+    expect(normalizeRadioText(once).text).toBe(once);
+  });
+
+  it('code 4 の展開と言い直しの重複をまとめる', () => {
+    expect(normalizeRadioText('Code 4, no further assistance needed.').text.toLowerCase()).toBe('no further assistance needed.');
   });
 
   it('フォネティックコードの連続を文字に直す', () => {
@@ -79,10 +88,10 @@ describe('buildCaption', () => {
     const seen = [];
     const cap = await buildCaption(' Medic 7 responding. ETA six minutes. ', async (en) => {
       seen.push(en);
-      return '「救急車7、出動中。到着予定6分。」';
+      return '- 到着予定時間は6分です。';
     });
-    expect(seen[0]).toBe('Ambulance 7 responding. estimated arrival time six minutes.');
-    expect(cap.ja).toBe('救急車7、出動中。到着予定6分。');
+    expect(seen).toEqual(['estimated arrival time six minutes.']);
+    expect(cap.ja).toBe('救急車7、出動する。到着予定時間は6分です。');
     expect(cap.category).toBe('ems');
     expect(cap.units[0].ja).toBe('救急車7');
   });
@@ -90,7 +99,22 @@ describe('buildCaption', () => {
     expect(await buildCaption('Thank you.', async () => 'x')).toBeNull();
     expect(await buildCaption('', async () => 'x')).toBeNull();
   });
-  it('日本語の後処理', () => {
+  it('日本語の後処理（記号・繰り返し）', () => {
     expect(polishJapanese('"了解 。"')).toBe('了解。');
+    expect(polishJapanese('- 了解')).toBe('了解');
+    expect(polishJapanese('南行き、40マイル標識付近の40マイル標識付近で停止')).toBe('南行き、40マイル標識付近で停止');
+  });
+  it('定型句は機械翻訳を使わずに訳す', async () => {
+    const mt = async (en) => {
+      throw new Error(`MTが呼ばれた: ${en}`);
+    };
+    expect((await buildCaption('Engine 12 copies, en route.', mt)).ja).toBe('消防車12、了解、現場へ向かう。');
+    expect((await buildCaption('10-4.', mt)).ja).toBe('了解。');
+    expect((await buildCaption('Code 4, no further assistance needed.', mt)).ja).toBe('応援不要。');
+  });
+  it('文ごとに分けて翻訳する', async () => {
+    const seen = [];
+    await buildCaption('Dispatch to Engine 12. Respond to a fire at 421 Maple Avenue. Cross street is Oak Drive.', async (en) => (seen.push(en), 'x'));
+    expect(seen).toEqual(['Dispatch to Fire Engine 12.', 'Respond to a fire at 421 Maple Avenue.', 'Cross street is Oak Drive.']);
   });
 });

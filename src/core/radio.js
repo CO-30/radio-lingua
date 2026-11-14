@@ -7,7 +7,7 @@ export const TEN_CODES = {
   '10-1': { en: 'poor reception', ja: '受信不良' },
   '10-2': { en: 'good reception', ja: '受信良好' },
   '10-3': { en: 'stop transmitting', ja: '送信中止' },
-  '10-4': { en: 'acknowledged', ja: '了解' },
+  '10-4': { en: 'Roger', ja: '了解' },
   '10-6': { en: 'busy', ja: '対応中' },
   '10-7': { en: 'out of service', ja: '業務外' },
   '10-8': { en: 'in service', ja: '業務復帰' },
@@ -16,13 +16,13 @@ export const TEN_CODES = {
   '10-19': { en: 'returning to station', ja: '帰署中' },
   '10-20': { en: 'location', ja: '現在地' },
   '10-22': { en: 'disregard', ja: '取り消し' },
-  '10-23': { en: 'arrived at scene', ja: '現着' },
+  '10-23': { en: 'on scene', ja: '現着' },
   '10-28': { en: 'vehicle registration check', ja: '車両照会' },
   '10-29': { en: 'records check', ja: '記録照会' },
   '10-33': { en: 'emergency traffic', ja: '緊急通信' },
   '10-50': { en: 'traffic accident', ja: '交通事故' },
   '10-76': { en: 'en route', ja: '出動中' },
-  '10-97': { en: 'arrived on scene', ja: '現着' },
+  '10-97': { en: 'on scene', ja: '現着' },
   '10-98': { en: 'assignment completed', ja: '任務完了' },
 };
 
@@ -63,7 +63,7 @@ const UNIT_TYPES = [
   { re: /\bunit/i, en: 'Unit', ja: 'ユニット', kind: 'police' },
   { re: /\bcar/i, en: 'Patrol Car', ja: 'パトカー', kind: 'police' },
 ];
-const UNIT_RE = new RegExp(`\\b(Engine|Ladder|Truck|Battalion|Rescue|Squad|Medic|Ambulance|Unit|Car)\\s+(\\d{1,4}|${NUM_WORD_RE}(?:[\\s-]${NUM_WORD_RE})?)\\b`, 'gi');
+const UNIT_RE = new RegExp(`(?<!Fire |Ladder |Patrol )\\b(Engine|Ladder|Truck|Battalion|Rescue|Squad|Medic|Ambulance|Unit|Car)\\s+(\\d{1,4}|${NUM_WORD_RE}(?:[\\s-]${NUM_WORD_RE})?)\\b`, 'gi');
 
 /**
  * 翻訳前の英文を整える。
@@ -102,7 +102,7 @@ export function normalizeRadioText(input) {
     if (n == null) return m;
     const t = UNIT_TYPES.find((u) => u.re.test(type));
     const label = `${type[0].toUpperCase()}${type.slice(1).toLowerCase()} ${n}`;
-    if (!units.find((u) => u.label === label)) units.push({ label, ja: `${t.ja}${n}`, kind: t.kind });
+    if (!units.find((u) => u.label === label)) units.push({ label, en: `${t.en} ${n}`, ja: `${t.ja}${n}`, kind: t.kind });
     return `${t.en} ${n}`;
   });
 
@@ -136,6 +136,8 @@ export function normalizeRadioText(input) {
     .replace(/\bEMS\b/g, 'emergency medical services')
     .replace(/\s+/g, ' ')
     .trim();
+  // コード展開と本人の言い直しが重なった重複（"no further assistance needed, No further assistance needed"）を除く
+  text = text.replace(/\b([a-z][\w ]{8,}?)([,.]?)\s+\1\b/gi, '$1');
 
   return { text, codes, units };
 }
@@ -183,13 +185,96 @@ export function cleanAsrText(text) {
     .trim();
 }
 
+/** 無線の定型句。機械翻訳に任せると不自然になりやすいので辞書で訳す（キーは小文字・句読点なし） */
+export const PHRASES = {
+  roger: '了解',
+  copy: '了解',
+  copies: '了解',
+  'copy that': '了解',
+  acknowledged: '了解',
+  'en route': '現場へ向かう',
+  'responding': '出動する',
+  'on scene': '現着',
+  'is on scene': '現着',
+  'no further assistance needed': '応援不要',
+  'stand by': '待機せよ',
+  'standing by': '待機中',
+  'go ahead': 'どうぞ',
+  affirmative: '肯定',
+  negative: '否定',
+  'say again': 'もう一度どうぞ',
+  'please repeat': 'もう一度どうぞ',
+  disregard: '取り消し',
+  'in service': '業務に復帰',
+  'out of service': '業務外',
+  'priority one call': '最優先の出動要請',
+  'priority one': '最優先',
+  'highest priority call': '最優先の出動要請',
+  'returning to station': '帰署する',
+  'assignment completed': '任務完了',
+};
+
+const phraseKey = (s) => s.toLowerCase().replace(/[.,!?;:]+/g, '').replace(/\s+/g, ' ').trim();
+
+/** 文に分ける（略語の後のピリオドでは分けない） */
+export function splitSentences(text) {
+  return text
+    .split(/(?<=[.!?])\s+(?=[A-Za-z0-9])/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+/** 直前と同じ文（言い直しや code 4 展開の重複）を除く */
+export function dedupeSentences(sentences) {
+  const out = [];
+  for (const s of sentences) if (!out.length || phraseKey(out.at(-1)) !== phraseKey(s)) out.push(s);
+  return out;
+}
+
 /** 翻訳後の日本語の後処理 */
 export function polishJapanese(ja) {
-  return ja
-    .replace(/^["「『]|["」』]$/g, '')
+  let t = ja
+    .replace(/^[\s\-・*「『"]+|[」』"]+$/g, '')
     .replace(/\s+([、。])/g, '$1')
     .replace(/\s{2,}/g, ' ')
     .trim();
+  // 小型モデルの言い直し・繰り返し（「40マイル標識付近の40マイル標識付近」）を1回にまとめる
+  for (let i = 0; i < 3; i++) t = t.replace(/(.{5,}?)(?:の|、|。| )?\1/g, '$1');
+  return t;
+}
+
+function endSentence(ja) {
+  return /[。！？!?」]$/.test(ja) ? ja : `${ja}。`;
+}
+
+/**
+ * 正規化済みの英文を、文ごとに「辞書 → 呼出符号 → 機械翻訳」の順で訳す。
+ * @param {string} text
+ * @param {{en:string, ja:string}[]} units
+ * @param {(en:string)=>Promise<string>} translate
+ */
+export async function translateRadio(text, units, translate) {
+  const parts = [];
+  for (const sentence of dedupeSentences(splitSentences(text))) {
+    let rest = sentence;
+    let prefix = '';
+    const unit = units.find((u) => u.en && rest.toLowerCase().startsWith(u.en.toLowerCase()) && /^[\s,.]|^$/.test(rest.slice(u.en.length)));
+    if (unit) {
+      prefix = unit.ja;
+      rest = rest.slice(unit.en.length).replace(/^[\s,]+/, '');
+    }
+    const key = phraseKey(rest);
+    const commaParts = rest.split(/,\s*/).map(phraseKey).filter(Boolean);
+    let ja;
+    if (!key) ja = '';
+    else if (PHRASES[key]) ja = PHRASES[key];
+    else if (commaParts.length > 1 && commaParts.every((k) => PHRASES[k])) ja = commaParts.map((k) => PHRASES[k]).join('、');
+    else ja = polishJapanese(await translate(rest));
+    if (prefix && ja) parts.push(endSentence(`${prefix}、${ja}`));
+    else if (prefix) parts.push(endSentence(prefix));
+    else if (ja) parts.push(endSentence(ja));
+  }
+  return parts.join('');
 }
 
 /**
@@ -201,8 +286,9 @@ export async function buildCaption(rawEn, translate) {
   const en = cleanAsrText(rawEn || '');
   if (!en || isLikelyHallucination(en)) return null;
   const norm = normalizeRadioText(en);
-  const ja = polishJapanese(await translate(norm.text));
+  const ja = await translateRadio(norm.text, norm.units, translate);
+  if (!ja) return null;
   let category = classify(en);
   if (norm.units[0] && (category === 'other' || norm.units.every((u) => u.kind === norm.units[0].kind))) category = norm.units[0].kind;
-  return { en, enForMt: norm.text, ja, codes: norm.codes, units: norm.units, category };
+  return { en, enForMt: norm.text, ja, codes: norm.codes, units: norm.units.map(({ en: _e, ...u }) => u), category };
 }

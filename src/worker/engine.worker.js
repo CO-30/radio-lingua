@@ -87,18 +87,19 @@ async function translate(text) {
         { role: 'system', content: 'Translate to Japanese.' },
         { role: 'user', content: text },
       ],
-      { max_new_tokens: 256, do_sample: false, repetition_penalty: 1.05 },
+      // 入力に比例した上限で、小型モデルの「続きを書き足す」暴走を防ぐ
+      { max_new_tokens: Math.min(200, 16 + Math.ceil(text.length * 0.9)), do_sample: false, repetition_penalty: 1.05 },
     );
     const g = out[0].generated_text;
     return Array.isArray(g) ? g.at(-1).content : String(g);
   }
-  const out = await mt(text, { max_new_tokens: 256 });
+  const out = await mt(text, { max_new_tokens: Math.min(200, 16 + Math.ceil(text.length * 0.9)) });
   return out[0].translation_text;
 }
 
 async function processAudio(id, audio) {
   const t0 = performance.now();
-  const r = await asr(audio, { language: undefined, return_timestamps: false, chunk_length_s: 30 });
+  const r = await asr(audio, { return_timestamps: false, chunk_length_s: 30 });
   const t1 = performance.now();
   const cap = await buildCaption(r.text, translate);
   const t2 = performance.now();

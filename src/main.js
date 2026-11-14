@@ -5,6 +5,7 @@ import { History } from './core/history.js';
 import { Speaker } from './core/tts.js';
 import { ASR_MODELS, MT_MODELS, defaultModelConfig, estimateDownloadMB, isMobileUA } from './core/models.js';
 import { LIVE_PROVIDERS, TYPE_LABEL } from './data/sources.js';
+import { runBench } from './core/bench.js';
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -410,7 +411,15 @@ function init() {
   });
   if (!speaker.supported) $('ttsToggle').closest('label').hidden = true;
   setInterval(tickClock, 500);
-  window.__rl = { state, history, get engine() { return engine; } }; // テスト・不具合調査用
+  // テスト・精度測定用（例: await __rl.bench('samples/demo-dispatch.mp3', [...]))
+  window.__rl = {
+    state,
+    history,
+    get engine() {
+      return engine;
+    },
+    bench: (url, expected) => runBench(engine, new URL(url, location.href).href, expected),
+  };
 }
 
 init();
