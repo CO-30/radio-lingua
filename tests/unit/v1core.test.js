@@ -108,3 +108,13 @@ describe('世界地図データ', () => {
     }
   });
 });
+
+import { pickJapaneseVoice } from '../../src/core/tts.js';
+describe('日本語の声の選び方', () => {
+  const v = (name, lang = 'ja-JP') => ({ name, lang });
+  it('Edge の Natural 音声を最優先', () =>
+    expect(pickJapaneseVoice([v('Kyoko'), v('Microsoft Nanami Online (Natural) - Japanese (Japan)'), v('Google 日本語')]).name).toMatch(/Natural/));
+  it('macOS の拡張版を簡易版より優先', () =>
+    expect(pickJapaneseVoice([v('Kyoko'), v('Kyoko (Enhanced)'), v('Samantha', 'en-US')]).name).toBe('Kyoko (Enhanced)'));
+  it('日本語の声がなければ null', () => expect(pickJapaneseVoice([v('Samantha', 'en-US')])).toBeNull());
+});

@@ -26,8 +26,8 @@ jobs:
       - name: モデル（OpenRAIL-M）を取得
         run: |
           pip install -q huggingface_hub
-          hf download Supertone/supertonic-3 --revision 3cadd1ee6394adea1bd021217a0e650ede09a323 --include "onnx/*" "voice_styles/*" "LICENSE" --local-dir m/fp32
-          hf download soniqo/Supertonic-3-ONNX-INT8 --include "onnx/*" "voice_styles/*" --local-dir m/int8
+          hf download Supertone/supertonic-3 --revision 3cadd1ee6394adea1bd021217a0e650ede09a323 --include "onnx/*" --include "voice_styles/*" --include "LICENSE" --local-dir m/fp32
+          hf download soniqo/Supertonic-3-ONNX-INT8 --include "onnx/*" --include "voice_styles/*" --local-dir m/int8
           du -sh m/*/onnx
       - run: node scripts/tts-eval/gen.mjs st/nodejs m/int8 int8 out
       - run: node scripts/tts-eval/gen.mjs st/nodejs m/fp32 fp32 out

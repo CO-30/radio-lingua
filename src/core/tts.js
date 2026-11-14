@@ -1,10 +1,28 @@
 // 日本語読み上げ。OS標準の音声合成（Web Speech API）を使うので無料・通信不要。
 
+// 自然に聞こえる順。Edge の「Natural」、macOS/iOS の拡張・Premium版、Google の声を優先する。
+const VOICE_RANK = [
+  /Natural|Neural|Online/i,
+  /Premium|プレミアム/i,
+  /Enhanced|拡張|高品質/i,
+  /Google/i,
+  /Nanami|Keita|Otoya|Kyoko|O-Ren|Hattori/i,
+];
+
+export function pickJapaneseVoice(voices) {
+  const ja = voices.filter((v) => /^ja(-|_|$)/i.test(v.lang));
+  const score = (v) => {
+    const i = VOICE_RANK.findIndex((re) => re.test(v.name));
+    return i < 0 ? VOICE_RANK.length : i;
+  };
+  return ja.slice().sort((a, b) => score(a) - score(b))[0] || null;
+}
+
 export class Speaker {
   constructor(synth = globalThis.speechSynthesis) {
     this.synth = synth;
     this.enabled = false;
-    this.rate = 1.15;
+    this.rate = 1.0; // 速くすると機械っぽさが目立つ
     this.voice = null;
     this.maxQueue = 3; // 読み上げが追いつかない時は古いものを飛ばす
     this.pending = 0;
@@ -17,9 +35,7 @@ export class Speaker {
     return !!this.synth && typeof SpeechSynthesisUtterance !== 'undefined';
   }
   _pickVoice() {
-    const voices = this.synth.getVoices?.() || [];
-    const ja = voices.filter((v) => /^ja(-|_|$)/i.test(v.lang));
-    this.voice = ja.find((v) => /Kyoko|Otoya|Nanami|Keita|Google/i.test(v.name)) || ja[0] || null;
+    this.voice = pickJapaneseVoice(this.synth.getVoices?.() || []);
   }
   /** 1件だけ読み上げる（自動読み上げの設定に関係なく）。終わったら onend */
   speakNow(text, onend) {
