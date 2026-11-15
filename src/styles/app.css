@@ -1819,3 +1819,9 @@ h3 {
 .voice-status.is-warn {
   color: var(--amber);
 }
+
+/* 受信中で読み上げがオフのときの案内 */
+.speak-hint {
+  margin: 12px 0 0;
+  color: var(--muted);
+}

@@ -51,6 +51,7 @@ function loadSettings(): Settings {
     alertSound: true,
     alertNotify: false,
     voice: 'system',
+    playOriginal: true,
   };
   const saved = readJSON<Partial<Settings> & { tts?: boolean }>(SETTINGS_KEY, {});
   if (saved.tts !== undefined && saved.autoSpeak === undefined) saved.autoSpeak = saved.tts; // v0.2 からの引き継ぎ
@@ -141,6 +142,7 @@ function applySettings(s: Settings) {
   speaker.useAi = s.voice !== 'system';
   if (speaker.useAi && voiceAllowed) startVoice(s.voice);
   speaker.enabled = s.autoSpeak;
+  for (const c of captures.values()) c.setMonitor(s.playOriginal);
   document.documentElement.style.setProperty('--cap-scale', String(s.size));
   document.body.classList.toggle('hide-en', !s.showEn);
 }
@@ -301,6 +303,7 @@ function captureFor(stationId: string) {
       notice: backlog >= 3 ? `AIの処理が音声に追いついていません。字幕が遅れる場合は、${tip}。` : x.notice,
     }));
   });
+  c.setMonitor(getState().settings.playOriginal);
   captures.set(stationId, c);
   return c;
 }

@@ -25,6 +25,14 @@ export class Capture extends EventTarget {
     this.mediaEl = null;
     this.srcNode = null;
     this.running = false;
+    this.monitorOn = true; // 元の音声をスピーカーに流すか
+    this.monitorGain = null;
+  }
+
+  /** 元の音声を流す／止める（翻訳は続ける） */
+  setMonitor(on) {
+    this.monitorOn = on;
+    if (this.monitorGain) this.monitorGain.gain.value = on ? 1 : 0;
   }
 
   _emit(type, detail) {
@@ -95,7 +103,12 @@ export class Capture extends EventTarget {
     }
     sourceNode.connect(node);
     node.connect(ctx.destination); // 処理を動かし続けるため（出力は無音）
-    if (monitor) sourceNode.connect(ctx.destination);
+    if (monitor) {
+      this.monitorGain = ctx.createGain();
+      this.monitorGain.gain.value = this.monitorOn ? 1 : 0;
+      sourceNode.connect(this.monitorGain);
+      this.monitorGain.connect(ctx.destination);
+    }
     this.node = node;
     this.srcNode = sourceNode;
     this.running = true;
@@ -183,7 +196,9 @@ export class Capture extends EventTarget {
       this.node?.disconnect();
       this.srcNode?.disconnect();
       this.analyser?.disconnect();
+      this.monitorGain?.disconnect();
     } catch {}
+    this.monitorGain = null;
     if (this.mediaEl) {
       this.mediaEl.pause();
       this.mediaEl.removeAttribute('src');

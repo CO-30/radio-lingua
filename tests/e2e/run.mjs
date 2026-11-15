@@ -78,6 +78,11 @@ async function run(name, contextOpts, mobile) {
   }
   await page.waitForFunction(() => window.__rl.getState().sessions.demo?.running, null, { timeout: 15000 });
   check((await page.locator('.live-status-text').textContent()) === '受信中', '受信中の表示');
+  if (!(await page.evaluate(() => window.__rl.getState().settings.autoSpeak))) check(await page.locator('.speak-hint').isVisible(), '読み上げがオフなら、日本語で聞く方法を案内');
+  await page.locator('.switch', { hasText: '英語の音声を流す' }).click();
+  check(await page.evaluate(() => window.__rl.captures.get('demo')?.monitorGain?.gain.value === 0), '英語の音声を止めても受信・翻訳は続く（音量0）');
+  await page.locator('.switch', { hasText: '英語の音声を流す' }).click();
+  check(await page.evaluate(() => window.__rl.captures.get('demo')?.monitorGain?.gain.value === 1), '英語の音声を戻せる');
   check(await page.locator('.nav-live').isVisible(), 'メニューに受信中の印が付く');
   await page.waitForSelector('.tx-list .tx:not(.tx-pending)', { timeout: 20000 });
   await page.waitForTimeout(600);

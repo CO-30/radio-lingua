@@ -31,6 +31,7 @@ export function LiveView({ stationId }: { stationId: string }) {
   const engine = useApp((s) => s.engine);
   const allHistory = useApp((s) => s.history);
   const autoSpeak = useApp((s) => s.settings.autoSpeak);
+  const playOriginal = useApp((s) => s.settings.playOriginal);
   const alertsOn = useApp((s) => s.settings.alertsOn);
   const alertCount = useApp((s) => s.settings.alertKeywords.length);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -127,10 +128,22 @@ export function LiveView({ stationId }: { stationId: string }) {
             <span className="switch-track" aria-hidden="true" />
             新しい交信を読み上げ
           </label>
+          <label className="switch">
+            <input type="checkbox" checked={playOriginal} onChange={(e) => updateSettings({ playOriginal: e.target.checked })} />
+            <span className="switch-track" aria-hidden="true" />
+            英語の音声を流す
+          </label>
           <button className={`text-btn alert-state${alertsOn && alertCount ? ' is-on' : ''}`} onClick={() => setState({ settingsOpen: true })}>
             {alertsOn && alertCount ? `キーワード通知：${alertCount}語` : 'キーワード通知を設定'}
           </button>
         </div>
+        {running && !autoSpeak && (
+          <p className="hint speak-hint">
+            {playOriginal
+              ? '流れているのは元の英語の音声です。日本語は下に字幕で出ます。日本語の音声で聞くには「新しい交信を読み上げ」をオンにしてください。'
+              : '日本語は下に字幕で出ます。日本語の音声で聞くには「新しい交信を読み上げ」をオンにしてください。'}
+          </p>
+        )}
         {loading && isThis && (
           <div className="prep">
             <p>端末の中で動くAIを準備しています。初回は数分かかることがあります。</p>

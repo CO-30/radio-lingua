@@ -58,6 +58,8 @@ export interface Settings {
   alertNotify: boolean;
   /** 読み上げの声。system＝端末の声、ai-f / ai-m＝AI音声（初回のみ約400MB取得） */
   voice: 'system' | 'ai-f' | 'ai-m';
+  /** 元の音声（英語）をスピーカーに流すか。オフなら日本語の読み上げだけを聞ける */
+  playOriginal: boolean;
 }
 
 export interface VoiceState {
