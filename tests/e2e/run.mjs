@@ -59,6 +59,13 @@ async function run(name, contextOpts, mobile) {
   await page.waitForTimeout(200);
   check((await page.locator('.alert-state').textContent()).includes('1語'), 'ライブ画面にキーワード通知の状態が出る');
   await page.click('.live-controls .btn-primary');
+  await page.waitForFunction(() => window.__rl.getState().engine.status === 'ready', null, { timeout: 15000 });
+  if (/iPhone/.test(await page.evaluate(() => navigator.userAgent))) {
+    // iPhone は押した操作の外では音が鳴らないため、準備ができたら押し直してもらう
+    await page.waitForFunction(() => (window.__rl.getState().sessions.demo?.notice || '').includes('準備ができました'), null, { timeout: 5000 });
+    check(!(await page.evaluate(() => window.__rl.getState().sessions.demo?.running)), 'iPhone：準備後に勝手に受信を始めない（無音を防ぐ）');
+    await page.click('.live-controls .btn-primary');
+  }
   await page.waitForFunction(() => window.__rl.getState().sessions.demo?.running, null, { timeout: 15000 });
   check((await page.locator('.live-status-text').textContent()) === '受信中', '受信中の表示');
   check(await page.locator('.nav-live').isVisible(), 'メニューに受信中の印が付く');

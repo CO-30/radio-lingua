@@ -12,7 +12,7 @@ import { countryCenter } from './geo';
 import { runBench } from '../core/bench.js';
 import { matchAlerts } from '../core/alerts.js';
 import { playChime } from '../core/chime.js';
-import { shouldAutoStart } from '../core/autostart.js';
+import { shouldAutoStart, canAutoplayAudio } from '../core/autostart.js';
 
 const SETTINGS_KEY = 'radiolingua.settings.v1';
 const STATIONS_KEY = 'radiolingua.stations.v1';
@@ -153,7 +153,7 @@ function createEngine() {
     if (pendingStart) {
       const p = pendingStart;
       pendingStart = null;
-      if (shouldAutoStart(p.at, Date.now(), document.visibilityState === 'visible')) void startLive(p.stationId, p.file);
+      if (shouldAutoStart(p.at, Date.now(), document.visibilityState === 'visible', canAutoplayAudio())) void startLive(p.stationId, p.file);
       else patchSession(p.stationId, { notice: 'AIの準備ができました。「受信して翻訳」を押すと受信を始めます。' });
     }
   });
@@ -359,6 +359,7 @@ export async function removeAiVoice() {
 }
 
 export function toggleSpeak(item: Transmission) {
+  speaker.unlock(); // 押した操作の中で音声出力を有効にする（iPhone）
   if (getState().speakingId === item.id) {
     speaker.stop();
     setState({ speakingId: null });

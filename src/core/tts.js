@@ -18,6 +18,18 @@ export function pickJapaneseVoice(voices) {
   return ja.slice().sort((a, b) => score(a) - score(b))[0] || null;
 }
 
+/**
+ * iPhone は消音スイッチがオンだと、Web Audio で作った音（AI音声・デモ音声のモニター）を鳴らさない。
+ * 音声の再生を「メディアの再生」として扱うよう伝え、消音スイッチに関係なく鳴らす（Safari 16.4以降）。
+ */
+export function useMediaPlayback(nav = globalThis.navigator) {
+  try {
+    if (nav?.audioSession && nav.audioSession.type !== 'playback') nav.audioSession.type = 'playback';
+  } catch {
+    /* 対応していない環境 */
+  }
+}
+
 export class Speaker {
   constructor(synth = globalThis.speechSynthesis) {
     this.synth = synth;
@@ -82,6 +94,7 @@ export class Speaker {
   }
   /** iOS は利用者の操作中に一度鳴らさないと以降読み上げない */
   unlock() {
+    useMediaPlayback();
     this.ai?.unlock();
     if (!this.supported) return;
     const u = new SpeechSynthesisUtterance(' ');

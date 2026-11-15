@@ -118,3 +118,13 @@ describe('日本語の声の選び方', () => {
     expect(pickJapaneseVoice([v('Kyoko'), v('Kyoko (Enhanced)'), v('Samantha', 'en-US')]).name).toBe('Kyoko (Enhanced)'));
   it('日本語の声がなければ null', () => expect(pickJapaneseVoice([v('Samantha', 'en-US')])).toBeNull());
 });
+
+import { useMediaPlayback } from '../../src/core/tts.js';
+describe('iPhone の消音スイッチ対策', () => {
+  it('audioSession があれば再生用にする', () => {
+    const nav = { audioSession: { type: 'auto' } };
+    useMediaPlayback(nav);
+    expect(nav.audioSession.type).toBe('playback');
+  });
+  it('無い環境では何もしない', () => expect(() => useMediaPlayback({})).not.toThrow());
+});
