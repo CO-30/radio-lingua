@@ -13,6 +13,7 @@ import { runBench } from '../core/bench.js';
 import { matchAlerts } from '../core/alerts.js';
 import { playChime } from '../core/chime.js';
 import { shouldAutoStart, canAutoplayAudio } from '../core/autostart.js';
+import { markLoading, clearLoading, takeCrashed, lighterConfig } from '../core/loadguard.js';
 
 const SETTINGS_KEY = 'radiolingua.settings.v1';
 const STATIONS_KEY = 'radiolingua.stations.v1';
@@ -57,12 +58,36 @@ function loadSettings(): Settings {
 }
 
 const settings = loadSettings();
+
+// 前回、AIの読み込み中に画面が落ちていたら（iPhone のメモリ不足など）、軽い構成に切り替えて理由を伝える
+const crashed = takeCrashed() as { engine?: { stationId?: string }; voice?: object };
+let crashNotice: { stationId: string; text: string } | null = null;
+let voiceCrashMsg: string | null = null;
+if (crashed.voice && settings.voice !== 'system') {
+  settings.voice = 'system';
+  voiceCrashMsg = 'AI音声の準備中に画面が再読み込みされました。この端末ではメモリが足りない可能性があるため、端末の声に戻しました。';
+}
+if (crashed.engine) {
+  const lc = lighterConfig(settings);
+  if (lc) Object.assign(settings, lc);
+  crashNotice = {
+    stationId: crashed.engine.stationId || 'demo',
+    text: lc
+      ? 'AIの準備中に画面が再読み込みされました（端末のメモリ不足の可能性）。軽いAIに切り替えたので、もう一度「受信して翻訳」を押してください。'
+      : 'AIの準備中に画面が再読み込みされました。この端末ではAIを動かせない可能性があります。PCでお試しください。',
+  };
+}
+if (crashed.voice || crashed.engine) writeJSON(SETTINGS_KEY, settings);
 export const history = new History(globalThis.localStorage, { persist: settings.saveHistory });
 export const speaker = new Speaker();
 let voiceAllowed = false; // 起動直後の確認が終わるまで、AI音声の取得を始めない
 speaker.ai = new AiVoice({
   createWorker: () => new Worker(new URL('../worker/tts.worker.js', import.meta.url), { type: 'module' }),
-  onState: (v) => setState({ voice: { ...v } }),
+  onState: (v) => {
+    if (v.status === 'loading') markLoading('voice');
+    else clearLoading('voice');
+    setState({ voice: { ...v } });
+  },
   // 字幕（音声認識・翻訳）の処理中は読み上げの合成を待つ。字幕を優先する
   isBusy: () => Object.values(getState().sessions).some((x) => x.pending > 0),
 });
@@ -88,20 +113,33 @@ initState({
   settingsOpen: false,
   addStationOpen: false,
 });
+if (voiceCrashMsg) setState({ voice: { ...getState().voice, error: voiceCrashMsg } });
+if (crashNotice) patchSession(crashNotice.stationId, { notice: crashNotice.text });
 applySettings(settings);
 // 起動時は、取得済みのときだけAI音声を準備する（大きな取得は設定で選んだときだけ）
 if (settings.voice !== 'system') {
   void isVoiceCached(fileUrl('onnx/vector_estimator.onnx')).then((cached) => {
     voiceAllowed = true;
-    if (cached) speaker.ai!.ensure(settings.voice);
+    if (cached) startVoice(settings.voice);
     else setState({ voice: { ...getState().voice, status: 'idle', error: 'AI音声のデータがこの端末にありません。設定から取得してください。' } });
   });
 } else voiceAllowed = true;
 
+/** AI音声の準備。字幕のAIを読み込み中なら、メモリを取り合わないよう終わってから始める */
+let voiceDeferred = false;
+function startVoice(voice: Settings['voice']) {
+  if (getState().engine.status === 'loading') {
+    voiceDeferred = true;
+    return;
+  }
+  voiceDeferred = false;
+  speaker.ai!.ensure(voice);
+}
+
 function applySettings(s: Settings) {
   speaker.rate = s.rate;
   speaker.useAi = s.voice !== 'system';
-  if (speaker.useAi && voiceAllowed) speaker.ai!.ensure(s.voice);
+  if (speaker.useAi && voiceAllowed) startVoice(s.voice);
   speaker.enabled = s.autoSpeak;
   document.documentElement.style.setProperty('--cap-scale', String(s.size));
   document.body.classList.toggle('hide-en', !s.showEn);
@@ -149,7 +187,9 @@ function createEngine() {
   });
   e.addEventListener('ready', (ev: any) => {
     loadedKey = modelKey();
+    clearLoading('engine');
     setEngine({ status: 'ready', device: ev.detail.device, progress: 1, detail: '', error: null });
+    if (voiceDeferred && speaker.useAi) startVoice(getState().settings.voice);
     if (pendingStart) {
       const p = pendingStart;
       pendingStart = null;
@@ -168,6 +208,7 @@ function createEngine() {
       return;
     }
     pendingStart = null;
+    clearLoading('engine');
     setEngine({ status: 'error', error: d.message || '不明なエラー', detail: '' });
   });
   e.addEventListener('log', (ev: any) => (ev.detail.level === 'info' ? console.info : console.warn)(ev.detail.message));
@@ -185,6 +226,7 @@ function beginLoad() {
   if (engine && loadedKey && loadedKey !== modelKey()) engine.worker?.terminate?.();
   if (!engine || (loadedKey && loadedKey !== modelKey())) engine = createEngine();
   setEngine({ status: 'loading', progress: 0, detail: '準備しています', error: null });
+  markLoading('engine', { stationId: getState().focus });
   writeJSONRaw('radiolingua.downloaded.' + modelKey(), '1');
   const s = getState().settings;
   engine.load({ asrKey: s.asr, mtKey: s.mt, forceWasm: s.forceWasm });

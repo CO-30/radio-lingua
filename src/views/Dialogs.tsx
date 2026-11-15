@@ -47,8 +47,8 @@ function VoiceFieldset({ value, onChange }: { value: Settings['voice']; onChange
       {(
         [
           ['system', '端末の声', '通信なし・すぐ使える'],
-          ['ai-f', 'AI音声（女性）', '自然な声・初回のみ約400MBを取得・PC推奨'],
-          ['ai-m', 'AI音声（男性）', '自然な声・初回のみ約400MBを取得・PC推奨'],
+          ['ai-f', 'AI音声（女性）', '自然な声・初回のみ約400MBを取得・PC推奨（スマホではメモリ不足で動かないことがあります）'],
+          ['ai-m', 'AI音声（男性）', '自然な声・初回のみ約400MBを取得・PC推奨（スマホではメモリ不足で動かないことがあります）'],
         ] as const
       ).map(([k, l, d]) => (
         <label key={k} className="option">

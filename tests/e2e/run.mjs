@@ -58,6 +58,16 @@ async function run(name, contextOpts, mobile) {
   await page.click('dialog[open] button[type=submit]');
   await page.waitForTimeout(200);
   check((await page.locator('.alert-state').textContent()).includes('1語'), 'ライブ画面にキーワード通知の状態が出る');
+  if (mobile) {
+    // AIの読み込み中に画面が落ちた（iPhone のメモリ不足）想定：開き直すと軽い構成に切り替えて理由を出す
+    await page.evaluate(() => sessionStorage.setItem('radiolingua.loadGuard', JSON.stringify({ engine: { stationId: 'demo', at: Date.now() } })));
+    const mtBefore = await page.evaluate(() => window.__rl.getState().settings.mt);
+    await page.reload();
+    await page.waitForSelector('.live-controls .btn-primary');
+    const after = await page.evaluate(() => ({ mt: window.__rl.getState().settings.mt, notice: window.__rl.getState().sessions.demo?.notice || '' }));
+    check(after.notice.includes('再読み込みされました') && (mtBefore === 'fugu' || after.mt === 'fugu'), '読み込み中に落ちたら軽いAIに切り替えて理由を表示');
+    check((await page.locator('body').textContent()).includes('軽いAIに切り替えた'), '理由が画面に出る');
+  }
   await page.click('.live-controls .btn-primary');
   await page.waitForFunction(() => window.__rl.getState().engine.status === 'ready', null, { timeout: 15000 });
   if (/iPhone/.test(await page.evaluate(() => navigator.userAgent))) {
